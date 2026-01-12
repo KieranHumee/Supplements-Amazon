@@ -20,6 +20,10 @@ const InfoTooltip: React.FC<{ text: string }> = ({ text }) => (
 );
 
 const App: React.FC = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+
   const [selectedProductId, setSelectedProductId] = useState(PRODUCTS[0].id);
   const [selectedMoqLevel, setSelectedMoqLevel] = useState<MoqLevel>(MoqLevel.MED);
   
@@ -37,6 +41,35 @@ const App: React.FC = () => {
   const [customUnitCost, setCustomUnitCost] = useState<number | null>(null);
   const [customSrp, setCustomSrp] = useState<number | null>(null);
   const [showTax, setShowTax] = useState(true);
+
+  // Check session storage on mount
+  useEffect(() => {
+    const auth = sessionStorage.getItem('fba_auth');
+    if (auth === 'true') {
+      setIsAuthenticated(true);
+    }
+  }, []);
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Strictly enforcing "REVIV" (case-sensitive)
+    if (password === 'REVIV') {
+      setIsAuthenticated(true);
+      sessionStorage.setItem('fba_auth', 'true');
+      setError('');
+    } else {
+      setIsAuthenticated(false);
+      setError('ACCESS DENIED. INVALID CREDENTIALS.');
+      setPassword(''); // Clear field on failure
+      setTimeout(() => setError(''), 4000);
+    }
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    sessionStorage.removeItem('fba_auth');
+    setPassword('');
+  };
 
   const product = useMemo(() => 
     PRODUCTS.find(p => p.id === selectedProductId) || PRODUCTS[0]
@@ -62,14 +95,13 @@ const App: React.FC = () => {
     const fulfillmentFee = product.fbaFee;
 
     // 3. Storage Fees (Base vs Q4)
-    // Approx £0.15 base, £0.45 in Q4 for a standard supplement bottle
     const baseStorageRate = isQ4 ? 0.45 : 0.15;
     const storageFee = baseStorageRate * (turnoverDays / 30);
     
-    // 4. Returns Processing (Category: Health/Personal Care usually minimal but present)
+    // 4. Returns Processing
     const returnsFee = 0.18;
 
-    // 5. Inbound Placement / Shipping to Amazon
+    // 5. Inbound Placement
     const inboundFee = inboundPlacementFee;
 
     // 6. Aged Inventory Penalties
@@ -81,7 +113,6 @@ const App: React.FC = () => {
     const baseFees = referralFee + fulfillmentFee + storageFee + inboundFee + returnsFee + agedInventoryFee; 
     const preAdUnitProfit = incVatPrice - (unitCost + landingCostPerUnit + baseFees + vatAmount);
 
-    // Calculate spend based on active mode
     let adSpendPerUnit = 0;
     if (adControlMode === 'BUDGET') {
       adSpendPerUnit = estimatedDailySales > 0 ? manualDailyBudget / estimatedDailySales : 0;
@@ -89,12 +120,9 @@ const App: React.FC = () => {
       adSpendPerUnit = targetRoas > 0 ? sellingPriceExVat / targetRoas : 0;
     }
 
-    const totalFees = baseFees + adSpendPerUnit;
     const netProfitPerUnit = preAdUnitProfit - adSpendPerUnit;
-    
     const dailyRevenue = incVatPrice * estimatedDailySales;
     const dailyNetProfit = netProfitPerUnit * estimatedDailySales;
-    
     const recommendedUnitAdSpend = Math.max(0, preAdUnitProfit * 0.4);
     const recommendedDailyAdSpend = recommendedUnitAdSpend * estimatedDailySales;
 
@@ -114,7 +142,7 @@ const App: React.FC = () => {
       netProfitAfterTax: netProfitPerUnit * 0.75,
       marginPercent: incVatPrice > 0 ? (netProfitPerUnit / incVatPrice) * 100 : 0,
       roiPercent: (unitCost + landingCostPerUnit) > 0 ? (netProfitPerUnit / (unitCost + landingCostPerUnit)) * 100 : 0,
-      totalFees,
+      totalFees: baseFees + adSpendPerUnit,
       dailyRevenue,
       weeklyRevenue: dailyRevenue * 7,
       monthlyRevenue: dailyRevenue * 30.44,
@@ -130,9 +158,57 @@ const App: React.FC = () => {
       recommendedDailyAdSpend,
       maxUnitAdSpend: preAdUnitProfit,
       effectiveDailyBudget: adSpendPerUnit * estimatedDailySales,
-      monthlyStorageFee: storageFee / (turnoverDays / 30) // normalized base for display
+      monthlyStorageFee: storageFee / (turnoverDays / 30)
     } as any;
   }, [product, selectedMoqLevel, customUnitCost, retailPrice, sellingPriceExVat, turnoverDays, adControlMode, manualDailyBudget, targetRoas, estimatedDailySales, landingCostPerUnit, inboundPlacementFee, isQ4]);
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[#050505] flex items-center justify-center p-6 font-montserrat relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none opacity-10">
+          <div className="absolute top-[-10%] right-[-5%] w-[60%] h-[60%] bg-brandRed rounded-full blur-[200px]"></div>
+          <div className="absolute bottom-[-10%] left-[-5%] w-[50%] h-[50%] bg-brandRed rounded-full blur-[150px] opacity-30"></div>
+        </div>
+        
+        <div className="w-full max-w-md relative z-10">
+          <div className="text-center mb-10">
+            <h1 className="text-sm font-bold text-brandRed tracking-[0.4em] uppercase mb-2">Security Protocol</h1>
+            <p className="text-[10px] font-bold text-brandGray tracking-[0.2em] uppercase">Enter decryption key to access internal systems</p>
+          </div>
+
+          <form onSubmit={handleLogin} className="bg-white/[0.03] border border-white/10 rounded-[2.5rem] p-10 shadow-2xl backdrop-blur-xl space-y-8">
+            <div className="space-y-2">
+              <label className="text-[9px] font-bold uppercase text-brandGray tracking-widest ml-1">Access Token</label>
+              <input 
+                type="password"
+                autoFocus
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className={`w-full bg-black/60 border ${error ? 'border-brandRed' : 'border-white/10'} rounded-2xl px-6 py-4 text-center text-lg font-bold tracking-[0.3em] focus:outline-none focus:border-brandRed/50 transition-all placeholder:text-white/10 placeholder:tracking-normal`}
+              />
+            </div>
+
+            {error && (
+              <p className="text-[9px] font-bold text-brandRed text-center tracking-widest animate-pulse uppercase">{error}</p>
+            )}
+
+            <button 
+              type="submit"
+              disabled={!password}
+              className={`w-full ${!password ? 'bg-brandGray/20 opacity-50 cursor-not-allowed' : 'bg-brandRed shadow-lg shadow-brandRed/20 hover:bg-brandRed/90 hover:scale-[1.02] active:scale-[0.98]'} text-white py-4 rounded-2xl font-bold uppercase tracking-[0.2em] text-xs transition-all`}
+            >
+              Authorize Access
+            </button>
+          </form>
+
+          <footer className="mt-8 text-center opacity-20">
+            <p className="text-[7px] font-bold text-brandGray uppercase tracking-[0.5em]">Classified Infrastructure // Reviv Dynamics</p>
+          </footer>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#050505] text-white font-montserrat selection:bg-brandRed/30 pb-20 overflow-x-hidden">
@@ -148,31 +224,41 @@ const App: React.FC = () => {
             <p className="text-[9px] font-bold text-brandGray tracking-[0.2em] uppercase mt-1">Internal Strategic Pricing Engine</p>
           </div>
           
-          <div className="flex items-center gap-4 bg-white/5 p-1 rounded-full border border-white/10 shadow-inner">
-            <select 
-              value={selectedProductId} 
-              onChange={(e) => setSelectedProductId(e.target.value)} 
-              className="bg-transparent text-white px-6 py-2 font-bold text-xs rounded-full focus:outline-none cursor-pointer hover:bg-white/5 transition-colors"
-            >
-              {PRODUCTS.map(p => <option key={p.id} value={p.id} className="bg-black">{p.name}</option>)}
-            </select>
-            <div className="flex gap-1 pr-1">
-              {Object.values(MoqLevel).map(level => (
-                <button 
-                  key={level} 
-                  onClick={() => setSelectedMoqLevel(level)} 
-                  className={`px-5 py-2 rounded-full text-[9px] font-bold uppercase transition-all ${selectedMoqLevel === level ? 'bg-brandRed text-white shadow-lg shadow-brandRed/20' : 'text-brandGray hover:bg-white/5'}`}
-                >
-                  {level}
-                </button>
-              ))}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 bg-white/5 p-1 rounded-full border border-white/10 shadow-inner">
+              <select 
+                value={selectedProductId} 
+                onChange={(e) => setSelectedProductId(e.target.value)} 
+                className="bg-transparent text-white px-6 py-2 font-bold text-xs rounded-full focus:outline-none cursor-pointer hover:bg-white/5 transition-colors"
+              >
+                {PRODUCTS.map(p => <option key={p.id} value={p.id} className="bg-black">{p.name}</option>)}
+              </select>
+              <div className="flex gap-1 pr-1">
+                {Object.values(MoqLevel).map(level => (
+                  <button 
+                    key={level} 
+                    onClick={() => setSelectedMoqLevel(level)} 
+                    className={`px-5 py-2 rounded-full text-[9px] font-bold uppercase transition-all ${selectedMoqLevel === level ? 'bg-brandRed text-white shadow-lg shadow-brandRed/20' : 'text-brandGray hover:bg-white/5'}`}
+                  >
+                    {level}
+                  </button>
+                ))}
+              </div>
             </div>
+            <button 
+              onClick={handleLogout}
+              className="p-2.5 rounded-full bg-white/5 border border-white/10 hover:bg-brandRed/20 hover:border-brandRed/40 transition-all group"
+              title="Sign Out"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-brandGray group-hover:text-brandRed" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+            </button>
           </div>
         </div>
       </header>
 
       <main className="relative z-10 max-w-7xl mx-auto px-6 py-8 space-y-8">
-        
         <section className="bg-white/[0.02] border border-white/10 rounded-[2.5rem] p-10 shadow-2xl backdrop-blur-md overflow-hidden relative">
           <div className="absolute top-0 right-0 w-32 h-32 bg-brandRed/10 blur-[80px]"></div>
           <PricingChart data={calculation} />
@@ -204,7 +290,6 @@ const App: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          
           <div className="lg:col-span-5 space-y-6">
             <section className="bg-white/[0.03] border border-white/10 rounded-3xl p-8 shadow-xl backdrop-blur-md">
               <div className="flex justify-between items-start mb-8">
@@ -351,7 +436,7 @@ const App: React.FC = () => {
       </main>
 
       <footer className="mt-16 py-12 border-t border-white/5 text-center opacity-30">
-        <p className="text-[8px] font-bold text-brandGray uppercase tracking-[1em]">ProfitDynamics // Powered by 10X Engineering</p>
+        <p className="text-[8px] font-bold text-brandGray uppercase tracking-[1em]">ProfitDynamics // Powered by Reviv Engineering</p>
       </footer>
     </div>
   );
