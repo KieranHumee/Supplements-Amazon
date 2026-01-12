@@ -309,13 +309,11 @@ const App: React.FC = () => {
       </header>
 
       <main className="relative z-10 max-w-7xl mx-auto px-6 py-8 space-y-8">
-        {/* Main Chart Section */}
         <section className="bg-white/[0.02] border border-white/10 rounded-[2.5rem] p-10 shadow-2xl backdrop-blur-md overflow-hidden relative">
           <div className={`absolute top-0 right-0 w-32 h-32 ${accentBgClass} opacity-10 blur-[80px] transition-colors duration-1000`}></div>
           <PricingChart data={calculation} />
         </section>
 
-        {/* Projection Cards Row */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <ProjectionCard 
             title="Daily" 
@@ -344,9 +342,7 @@ const App: React.FC = () => {
           />
         </div>
 
-        {/* Actionable Controls Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Left Column: Economics */}
           <div className="lg:col-span-4 space-y-6">
             <section className="bg-white/[0.03] border border-white/10 rounded-3xl p-8 shadow-xl backdrop-blur-md h-full flex flex-col">
               <div className="flex justify-between items-start mb-8">
@@ -402,10 +398,8 @@ const App: React.FC = () => {
             </section>
           </div>
 
-          {/* Right Column: Fees and Waterfall */}
           <div className="lg:col-span-8 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Fee Management Card */}
               <section className="bg-white/[0.03] border border-white/10 rounded-3xl p-8 shadow-xl">
                 <h3 className="text-[10px] font-bold uppercase text-brandRed tracking-widest flex items-center gap-2 mb-8">
                   <div className="w-1 h-3 bg-brandRed"></div>
@@ -436,8 +430,7 @@ const App: React.FC = () => {
                 </div>
               </section>
 
-              {/* Marketing Management Card */}
-              <section className="bg-white/[0.03] border border-white/10 rounded-3xl p-8 shadow-xl">
+              <section className="bg-white/[0.03] border border-white/10 rounded-3xl p-8 shadow-xl flex flex-col">
                 <div className="flex justify-between items-center mb-8">
                   <h3 className="text-[10px] font-bold uppercase text-brandRed tracking-widest flex items-center gap-2">
                     <div className="w-1 h-3 bg-brandRed"></div>
@@ -448,23 +441,58 @@ const App: React.FC = () => {
                     <button onClick={() => setAdControlMode('ROAS')} className={`px-3 py-1.5 rounded-lg text-[8px] font-bold uppercase transition-all ${adControlMode === 'ROAS' ? (isProfitable ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'bg-brandRed text-white shadow-lg shadow-brandRed/20') : 'text-brandGray'}`}>ROAS</button>
                   </div>
                 </div>
-                <div className="space-y-6">
+                <div className="space-y-6 flex-grow">
                   <div className="grid grid-cols-2 gap-4">
                     <OverrideInput label="Daily Budget" value={manualDailyBudget} onChange={setManualDailyBudget} isOverridden={adControlMode === 'ROAS'} suffix="£" />
                     <OverrideInput label="Target ROAS" value={targetRoas} onChange={setTargetRoas} isOverridden={adControlMode === 'BUDGET'} suffix="x" />
                   </div>
-                  <div className="p-6 bg-white/[0.02] border border-dashed border-white/10 rounded-[1.5rem] flex flex-col justify-center">
-                    <span className="text-[8px] font-bold text-brandGray uppercase tracking-widest mb-1 block">Projected Daily Spend</span>
-                    <div className="flex justify-between items-baseline">
-                      <span className="text-2xl font-bold text-white tracking-tight">£{(calculation as any).effectiveDailyBudget.toFixed(2)}</span>
-                      <span className={`text-sm font-bold tracking-tight ${accentColorClass}`}>{(calculation.roas || 0).toFixed(2)}x ROAS</span>
+                  
+                  {/* Visual Trace: Budget -> Unit Spend -> ROAS */}
+                  <div className="pt-6 border-t border-white/5 space-y-4">
+                    <div className="flex justify-between items-center">
+                       <span className="text-[8px] font-bold text-brandGray uppercase tracking-widest">Marketing Efficiency Trace</span>
+                       <span className={`text-[9px] font-bold ${accentColorClass} tracking-widest uppercase`}>{(calculation.roas || 0).toFixed(2)}x ROAS</span>
+                    </div>
+                    
+                    <div className="grid grid-cols-3 gap-2 items-center text-center">
+                       <div className="bg-white/5 p-2 rounded-xl border border-white/5">
+                          <span className="text-[7px] text-white/30 uppercase font-bold block mb-1">Total Budget</span>
+                          <span className="text-xs font-bold text-white">£{(calculation as any).effectiveDailyBudget.toFixed(0)}</span>
+                       </div>
+                       <div className="flex justify-center text-white/10">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                          </svg>
+                       </div>
+                       <div className="bg-white/5 p-2 rounded-xl border border-white/5">
+                          <span className="text-[7px] text-white/30 uppercase font-bold block mb-1">Spend / Unit</span>
+                          <span className={`text-xs font-bold ${accentColorClass}`}>£{(calculation.adSpendPerUnit || 0).toFixed(2)}</span>
+                       </div>
+                    </div>
+
+                    <div className="space-y-2">
+                       <div className="flex justify-between text-[7px] font-bold text-white/30 uppercase tracking-widest">
+                          <span>Scale efficiency buffer</span>
+                          <span>Breakeven Point</span>
+                       </div>
+                       <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden relative">
+                          <div 
+                            className={`absolute top-0 left-0 h-full ${accentBgClass} transition-all duration-1000 shadow-[0_0_10px] ${accentShadowClass}`} 
+                            style={{ width: `${Math.min(100, (calculation.adSpendPerUnit / (calculation.maxUnitAdSpend || 1)) * 100)}%` }}
+                          />
+                          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1px] h-full bg-white/20"></div>
+                       </div>
+                       <p className="text-[7px] text-brandGray font-medium leading-relaxed italic opacity-60">
+                         {calculation.adSpendPerUnit < calculation.maxUnitAdSpend 
+                           ? `Spending £${(calculation.maxUnitAdSpend - calculation.adSpendPerUnit).toFixed(2)} under your breakeven limit.` 
+                           : `Marketing spend is currently exceeding the unit profit buffer.`}
+                       </p>
                     </div>
                   </div>
                 </div>
               </section>
             </div>
 
-            {/* Waterfall Summary Card */}
             <section className="bg-white/[0.03] border border-white/10 rounded-3xl p-8 shadow-xl">
               <div className="flex justify-between items-center mb-6">
                 <span className="text-[9px] font-bold text-brandGray uppercase tracking-widest">FBA Fee Audit & Waterfall</span>
@@ -524,7 +552,6 @@ const ProjectionCard = ({ title, revenue, profit, isPostTax, highlight, info, ac
   const isEmerald = accentColor === 'emerald';
   const accentBorder = isEmerald ? 'border-emerald-500/30' : 'border-brandRed/30';
   const accentBg = isEmerald ? 'bg-emerald-500/10' : 'bg-brandRed/10';
-  const accentShadow = isEmerald ? 'shadow-emerald-500/20' : 'shadow-brandRed/20';
   const accentText = isEmerald ? 'text-emerald-500' : 'text-brandRed';
   const pulseColor = isEmerald ? 'bg-emerald-500' : 'bg-brandRed';
 
