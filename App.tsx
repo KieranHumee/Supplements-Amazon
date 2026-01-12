@@ -30,9 +30,24 @@ const App: React.FC = () => {
   const [turnoverDays, setTurnoverDays] = useState(45);
   const [landingCostPerUnit, setLandingCostPerUnit] = useState(0.85); 
   const [estimatedDailySales, setEstimatedDailySales] = useState(20);
-  const [inboundPlacementFee, setInboundPlacementFee] = useState(0.40);
   const [isQ4, setIsQ4] = useState(false);
   
+  // Extra Amazon Fees
+  const [feesActive, setFeesActive] = useState({
+    labelling: false,
+    prep: false,
+    inbound: true,
+    storage: true
+  });
+  
+  const [feeAmounts, setFeeAmounts] = useState({
+    labelling: 0.20,
+    prep: 0.50,
+    inbound: 0.30,
+    storageStandard: 0.10,
+    storagePeak: 0.25
+  });
+
   // Ad Controls
   const [adControlMode, setAdControlMode] = useState<'BUDGET' | 'ROAS'>('BUDGET');
   const [manualDailyBudget, setManualDailyBudget] = useState<number | null>(150);
@@ -94,14 +109,19 @@ const App: React.FC = () => {
     const fulfillmentFee = product.fbaFee;
 
     // 3. Storage Fees
-    const baseStorageRate = isQ4 ? 0.45 : 0.15;
-    const storageFee = baseStorageRate * (turnoverDays / 30);
+    let storageFee = 0;
+    if (feesActive.storage) {
+      const rate = isQ4 ? feeAmounts.storagePeak : feeAmounts.storageStandard;
+      storageFee = rate * (turnoverDays / 30);
+    }
     
     // 4. Returns Processing
     const returnsFee = 0.18;
 
-    // 5. Inbound Placement
-    const inboundFee = inboundPlacementFee || 0;
+    // 5. Extra Amazon Fees
+    const extraFees = (feesActive.labelling ? feeAmounts.labelling : 0) + 
+                     (feesActive.prep ? feeAmounts.prep : 0) + 
+                     (feesActive.inbound ? feeAmounts.inbound : 0);
 
     // 6. Aged Inventory Penalties
     let agedInventoryFee = 0;
@@ -109,7 +129,7 @@ const App: React.FC = () => {
     else if (turnoverDays > 271) agedInventoryFee = 1.25;
     else if (turnoverDays > 181) agedInventoryFee = 0.50;
 
-    const baseFees = referralFee + fulfillmentFee + storageFee + inboundFee + returnsFee + agedInventoryFee; 
+    const baseFees = referralFee + fulfillmentFee + storageFee + extraFees + returnsFee + agedInventoryFee; 
     const preAdUnitProfit = incVatPrice - (unitCost + landingCostPerUnit + baseFees + vatAmount);
 
     let adSpendPerUnit = 0;
@@ -129,7 +149,6 @@ const App: React.FC = () => {
     const recommendedUnitAdSpend = Math.max(0, preAdUnitProfit * 0.4);
     const recommendedDailyAdSpend = recommendedUnitAdSpend * sales;
 
-    // Safety check for NaN values to prevent UI crashes
     const safeNum = (n: number) => isFinite(n) ? n : 0;
 
     return {
@@ -139,7 +158,7 @@ const App: React.FC = () => {
       referralFee: safeNum(referralFee),
       fulfillmentFee: safeNum(fulfillmentFee),
       storageFee: safeNum(storageFee),
-      inboundFee: safeNum(inboundFee),
+      inboundFee: safeNum(feesActive.inbound ? feeAmounts.inbound : 0),
       agedInventoryFee: safeNum(agedInventoryFee),
       returnsFee: safeNum(returnsFee),
       adSpendPerUnit: safeNum(adSpendPerUnit),
@@ -166,7 +185,40 @@ const App: React.FC = () => {
       effectiveDailyBudget: safeNum(adSpendPerUnit * sales),
       monthlyStorageFee: safeNum(storageFee / (turnoverDays / 30 || 1))
     } as any;
-  }, [product, selectedMoqLevel, customUnitCost, retailPrice, sellingPriceExVat, turnoverDays, adControlMode, manualDailyBudget, targetRoas, estimatedDailySales, landingCostPerUnit, inboundPlacementFee, isQ4]);
+  }, [product, selectedMoqLevel, customUnitCost, retailPrice, sellingPriceExVat, turnoverDays, adControlMode, manualDailyBudget, targetRoas, estimatedDailySales, landingCostPerUnit, feesActive, feeAmounts, isQ4]);
+
+  const exportToCsv = () => {
+    const rows = [
+      ['Metric', 'Value'],
+      ['Product Name', product.name],
+      ['MOQ Level', selectedMoqLevel],
+      ['Units Per Day', estimatedDailySales],
+      ['Retail Price (Inc VAT)', `£${retailPrice.toFixed(2)}`],
+      ['Unit Cost (Landing + COGS)', `£${(calculation.unitCost + calculation.landingCost).toFixed(2)}`],
+      ['FBA Referral Fee', `£${calculation.referralFee.toFixed(2)}`],
+      ['FBA Fulfilment Fee', `£${calculation.fulfillmentFee.toFixed(2)}`],
+      ['Monthly Storage Fee', `£${calculation.monthlyStorageFee.toFixed(2)}`],
+      ['Marketing Per Unit', `£${calculation.adSpendPerUnit.toFixed(2)}`],
+      ['Net Profit Per Unit', `£${calculation.netProfitPerUnit.toFixed(2)}`],
+      ['Profit Margin', `${calculation.marginPercent.toFixed(2)}%`],
+      ['Unit ROI', `${calculation.roiPercent.toFixed(2)}%`],
+      ['', ''],
+      ['Financial Outlook', ''],
+      ['Daily Net Profit', `£${calculation.dailyNetProfit.toFixed(2)}`],
+      ['Weekly Net Profit', `£${calculation.weeklyNetProfit.toFixed(2)}`],
+      ['Monthly Net Profit', `£${calculation.monthlyNetProfit.toFixed(2)}`],
+      ['Yearly Net Profit', `£${calculation.yearlyNetProfit.toFixed(2)}`],
+    ];
+
+    const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `REVIV_FBA_${product.name.replace(/\s/g, '_')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   if (!isAuthenticated) {
     return (
@@ -231,6 +283,15 @@ const App: React.FC = () => {
           </div>
           
           <div className="flex items-center gap-4">
+            <button 
+              onClick={exportToCsv}
+              className="px-6 py-2 rounded-full border border-brandRed/40 text-brandRed text-[9px] font-bold uppercase hover:bg-brandRed hover:text-white transition-all shadow-lg shadow-brandRed/10 flex items-center gap-2"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Export Spreadsheet
+            </button>
             <div className="flex items-center gap-4 bg-white/5 p-1 rounded-full border border-white/10 shadow-inner">
               <select 
                 value={selectedProductId} 
@@ -296,7 +357,7 @@ const App: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          <div className="lg:col-span-5 space-y-6">
+          <div className="lg:col-span-4 space-y-6">
             <section className="bg-white/[0.03] border border-white/10 rounded-3xl p-8 shadow-xl backdrop-blur-md">
               <div className="flex justify-between items-start mb-8">
                 <h3 className="text-[10px] font-bold uppercase text-brandRed tracking-widest flex items-center gap-2">
@@ -324,13 +385,10 @@ const App: React.FC = () => {
                     <OverrideInput label="Cost Per Unit" value={calculation.unitCost} onChange={setCustomUnitCost} isOverridden={customUnitCost !== null} />
                     <OverrideInput label="Retail (Inc VAT)" value={retailPrice} onChange={setCustomSrp} isOverridden={customSrp !== null} />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <OverrideInput label="Inbound Fee" value={inboundPlacementFee} onChange={setInboundPlacementFee} isOverridden={false} />
+                  <div className="grid grid-cols-1 gap-4">
                     <div className="flex flex-col">
-                      <span className="text-[8px] font-bold uppercase text-brandGray tracking-widest mb-2">Q4 Pricing</span>
-                      <button onClick={() => setIsQ4(!isQ4)} className={`w-full py-3 rounded-2xl text-[9px] font-bold uppercase border transition-all ${isQ4 ? 'bg-brandRed/20 border-brandRed text-brandRed' : 'bg-white/5 border-white/10 text-white/40'}`}>
-                        {isQ4 ? 'Active (Oct-Dec)' : 'Standard'}
-                      </button>
+                      <span className="text-[8px] font-bold uppercase text-brandGray tracking-widest mb-2">Landing Cost (Shipping)</span>
+                      <OverrideInput label="" value={landingCostPerUnit} onChange={setLandingCostPerUnit} isOverridden={false} suffix="£" />
                     </div>
                   </div>
                 </div>
@@ -349,91 +407,121 @@ const App: React.FC = () => {
             </section>
           </div>
 
-          <div className="lg:col-span-7 space-y-6">
-            <section className="bg-white/[0.03] border border-white/10 rounded-3xl p-8 shadow-xl">
-              <div className="flex justify-between items-center mb-8">
-                <h3 className="text-[10px] font-bold uppercase text-brandRed tracking-widest flex items-center gap-2">
+          <div className="lg:col-span-8 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Amazon Extra Fees Section */}
+              <section className="bg-white/[0.03] border border-white/10 rounded-3xl p-8 shadow-xl">
+                <h3 className="text-[10px] font-bold uppercase text-brandRed tracking-widest flex items-center gap-2 mb-8">
                   <div className="w-1 h-3 bg-brandRed"></div>
-                  Advertising Strategy
-                  <InfoTooltip text="Drive by Budget or ROAS. ROAS is Revenue (Ex-VAT) / Ad Spend. 4.0x ROAS means £4 revenue for every £1 spent." />
+                  Amazon Extra Fees
+                  <InfoTooltip text="Optional FBA costs that may apply depending on your prep requirements and seasonal storage." />
                 </h3>
-                <div className="flex bg-black/40 p-1 rounded-xl border border-white/5">
-                   <button 
-                    onClick={() => setAdControlMode('BUDGET')}
-                    className={`px-3 py-1.5 rounded-lg text-[8px] font-bold uppercase transition-all ${adControlMode === 'BUDGET' ? 'bg-brandRed text-white shadow-lg shadow-brandRed/20' : 'text-brandGray'}`}
-                   >Budget Drive</button>
-                   <button 
-                    onClick={() => setAdControlMode('ROAS')}
-                    className={`px-3 py-1.5 rounded-lg text-[8px] font-bold uppercase transition-all ${adControlMode === 'ROAS' ? 'bg-brandRed text-white shadow-lg shadow-brandRed/20' : 'text-brandGray'}`}
-                   >ROAS Drive</button>
+                <div className="space-y-4">
+                  <FeeToggle 
+                    label="FNSKU Labelling" 
+                    active={feesActive.labelling} 
+                    amount={feeAmounts.labelling}
+                    onToggle={() => setFeesActive({...feesActive, labelling: !feesActive.labelling})}
+                    onChange={(val) => setFeeAmounts({...feeAmounts, labelling: val})}
+                    tooltip="Charged if Amazon labels your products instead of you or your supplier."
+                  />
+                  <FeeToggle 
+                    label="Prep / Packaging" 
+                    active={feesActive.prep} 
+                    amount={feeAmounts.prep}
+                    onToggle={() => setFeesActive({...feesActive, prep: !feesActive.prep})}
+                    onChange={(val) => setFeeAmounts({...feeAmounts, prep: val})}
+                    tooltip="Charged for polybagging, bubble wrap, or safety prep if your product is not compliant."
+                  />
+                  <FeeToggle 
+                    label="Inbound Placement" 
+                    active={feesActive.inbound} 
+                    amount={feeAmounts.inbound}
+                    onToggle={() => setFeesActive({...feesActive, inbound: !feesActive.inbound})}
+                    onChange={(val) => setFeeAmounts({...feeAmounts, inbound: val})}
+                    tooltip="Charged if Amazon distributes your inventory across multiple fulfilment centres."
+                  />
+                  <div className="pt-4 border-t border-white/5">
+                    <div className="flex justify-between items-center mb-4">
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => setFeesActive({...feesActive, storage: !feesActive.storage})} className={`w-8 h-4 rounded-full relative transition-colors ${feesActive.storage ? 'bg-brandRed' : 'bg-white/10'}`}>
+                          <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${feesActive.storage ? 'left-4.5' : 'left-0.5'}`}></div>
+                        </button>
+                        <span className="text-[10px] font-bold text-white uppercase tracking-widest">Storage Mode</span>
+                        <InfoTooltip text="Charged per cubic metre per month for storing your inventory at Amazon warehouses." />
+                      </div>
+                      <button onClick={() => setIsQ4(!isQ4)} className={`px-4 py-1.5 rounded-full text-[8px] font-bold uppercase transition-all ${isQ4 ? 'bg-brandRed text-white' : 'bg-white/5 text-brandGray border border-white/10'}`}>
+                        {isQ4 ? 'Peak (Oct-Dec)' : 'Standard (Jan-Sep)'}
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="flex-1">
+                        <span className="text-[7px] text-brandGray font-bold uppercase block mb-1">Jan - Sep Fee</span>
+                        <OverrideInput label="" value={feeAmounts.storageStandard} onChange={(val:any) => setFeeAmounts({...feeAmounts, storageStandard: val})} isOverridden={false} suffix="£" />
+                      </div>
+                      <div className="flex-1">
+                        <span className="text-[7px] text-brandGray font-bold uppercase block mb-1">Oct - Dec Fee</span>
+                        <OverrideInput label="" value={feeAmounts.storagePeak} onChange={(val:any) => setFeeAmounts({...feeAmounts, storagePeak: val})} isOverridden={false} suffix="£" />
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              </section>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+              {/* Ads Strategy Section */}
+              <section className="bg-white/[0.03] border border-white/10 rounded-3xl p-8 shadow-xl">
+                <div className="flex justify-between items-center mb-8">
+                  <h3 className="text-[10px] font-bold uppercase text-brandRed tracking-widest flex items-center gap-2">
+                    <div className="w-1 h-3 bg-brandRed"></div>
+                    Advertising Strategy
+                  </h3>
+                  <div className="flex bg-black/40 p-1 rounded-xl border border-white/5">
+                    <button 
+                      onClick={() => setAdControlMode('BUDGET')}
+                      className={`px-3 py-1.5 rounded-lg text-[8px] font-bold uppercase transition-all ${adControlMode === 'BUDGET' ? 'bg-brandRed text-white shadow-lg shadow-brandRed/20' : 'text-brandGray'}`}
+                    >Budget</button>
+                    <button 
+                      onClick={() => setAdControlMode('ROAS')}
+                      className={`px-3 py-1.5 rounded-lg text-[8px] font-bold uppercase transition-all ${adControlMode === 'ROAS' ? 'bg-brandRed text-white shadow-lg shadow-brandRed/20' : 'text-brandGray'}`}
+                    >ROAS</button>
+                  </div>
+                </div>
                 <div className="space-y-6">
                   <div className="grid grid-cols-2 gap-4">
-                    <OverrideInput 
-                      label="Manual Budget" 
-                      value={manualDailyBudget} 
-                      onChange={setManualDailyBudget} 
-                      isOverridden={adControlMode === 'ROAS'}
-                      suffix="£"
-                    />
-                    <OverrideInput 
-                      label="Target ROAS" 
-                      value={targetRoas} 
-                      onChange={setTargetRoas} 
-                      isOverridden={adControlMode === 'BUDGET'}
-                      suffix="x"
-                    />
+                    <OverrideInput label="Daily Budget" value={manualDailyBudget} onChange={setManualDailyBudget} isOverridden={adControlMode === 'ROAS'} suffix="£" />
+                    <OverrideInput label="Target ROAS" value={targetRoas} onChange={setTargetRoas} isOverridden={adControlMode === 'BUDGET'} suffix="x" />
                   </div>
-                  {adControlMode === 'BUDGET' ? (
-                    <SliderInput label="Adjust Daily Budget" value={manualDailyBudget || 0} min={0} max={2500} prefix="£" onChange={setManualDailyBudget} />
-                  ) : (
-                    <SliderInput label="Adjust Target ROAS" value={targetRoas || 0} min={1} max={20} step={0.1} suffix="x" onChange={setTargetRoas} />
-                  )}
-                </div>
-                
-                <div className="p-5 bg-white/[0.02] border border-dashed border-white/10 rounded-2xl flex flex-col justify-center h-full">
-                  <div className="mb-4 pb-4 border-b border-white/5">
-                    <span className="text-[8px] font-bold text-brandGray uppercase tracking-widest mb-1 block">Spend Result</span>
+                  <div className="p-5 bg-white/[0.02] border border-dashed border-white/10 rounded-2xl">
+                    <span className="text-[8px] font-bold text-brandGray uppercase tracking-widest mb-1 block">Daily Result</span>
                     <div className="flex justify-between items-baseline">
                       <span className="text-xl font-bold text-white tracking-tight">£{(calculation as any).effectiveDailyBudget.toFixed(2)}</span>
                       <span className="text-sm font-bold text-brandRed tracking-tight">{(calculation.roas || 0).toFixed(2)}x ROAS</span>
                     </div>
                   </div>
-                  <span className="text-[8px] font-bold text-brandRed uppercase tracking-widest mb-2 flex items-center gap-1">
-                    Recommendation
-                    <InfoTooltip text="Calculated based on 40% margin allocation for scale." />
-                  </span>
-                  <p className="text-xl font-bold tracking-tighter">£{Math.round(calculation.recommendedDailyAdSpend || 0).toLocaleString()}</p>
                 </div>
-              </div>
+              </section>
+            </div>
 
-              <div className="pt-8 border-t border-white/10">
-                <div className="flex justify-between items-center mb-6">
-                  <span className="text-[9px] font-bold text-brandGray uppercase tracking-widest flex items-center gap-1">
-                    FBA Fee Audit & Waterfall
-                    <InfoTooltip text="A comprehensive trace of your retail price minus all platform costs." />
-                  </span>
-                  <span className="text-[7px] text-white/20 uppercase tracking-widest">Per Unit Logic</span>
-                </div>
-                <div className="space-y-3">
-                  <WaterfallRow label="Gross Price" value={retailPrice} isStart />
-                  <WaterfallRow label="VAT (20%)" value={calculation.vatAmount} isNegative tooltip="VAT collected on behalf of the government." />
-                  <WaterfallRow label="COGS + Landing" value={calculation.unitCost + calculation.landingCost} isNegative tooltip="Factory cost + shipping to local prep centre." />
-                  <WaterfallRow label="Amazon Referral Fee" value={calculation.referralFee} isNegative tooltip="Amazon's commission on each sale, usually 8%–15% depending on category, calculated on the selling price (including shipping if applicable)." />
-                  <WaterfallRow label="FBA Fulfillment Fee" value={calculation.fulfillmentFee} isNegative tooltip="Picking, packing, and delivery by Amazon." />
-                  <WaterfallRow label="Monthly Storage" value={calculation.storageFee} isNegative tooltip="Fee for warehouse space occupied. Higher in Q4." />
-                  <WaterfallRow label="Inbound + Returns" value={calculation.inboundFee + calculation.returnsFee} isNegative tooltip="Placement fees for split shipments and average return handling." />
-                  {calculation.agedInventoryFee > 0 && (
-                    <WaterfallRow label="Aged Stock Penalty" value={calculation.agedInventoryFee} isNegative highlight tooltip="Penalty for items stored over 180 days." />
-                  )}
-                  <WaterfallRow label="Marketing / Ads" value={calculation.adSpendPerUnit} isNegative highlight tooltip="The advertising cost required to generate the sale." />
-                  <div className="pt-4 mt-4 border-t border-white/10 flex justify-between items-center">
-                    <span className="text-[10px] font-bold uppercase text-brandRed tracking-[0.2em]">Final Net Profit</span>
-                    <span className="text-3xl font-bold text-brandRed tracking-tighter">£{(calculation.netProfitPerUnit || 0).toFixed(2)}</span>
-                  </div>
+            <section className="bg-white/[0.03] border border-white/10 rounded-3xl p-8 shadow-xl">
+              <div className="flex justify-between items-center mb-6">
+                <span className="text-[9px] font-bold text-brandGray uppercase tracking-widest flex items-center gap-1">
+                  FBA Fee Audit & Waterfall
+                  <InfoTooltip text="A comprehensive trace of your retail price minus all platform costs." />
+                </span>
+                <span className="text-[7px] text-white/20 uppercase tracking-widest">Per Unit Logic</span>
+              </div>
+              <div className="space-y-3">
+                <WaterfallRow label="Gross Price" value={retailPrice} isStart />
+                <WaterfallRow label="VAT (20%)" value={calculation.vatAmount} isNegative tooltip="VAT collected on behalf of the government." />
+                <WaterfallRow label="COGS + Landing" value={calculation.unitCost + calculation.landingCost} isNegative tooltip="Factory cost + shipping to local prep centre." />
+                <WaterfallRow label="Amazon Referral Fee" value={calculation.referralFee} isNegative tooltip="Amazon's commission on each sale." />
+                <WaterfallRow label="FBA Fulfillment Fee" value={calculation.fulfillmentFee} isNegative tooltip="Picking, packing, and delivery by Amazon." />
+                <WaterfallRow label="Extra Amazon Fees" value={(feesActive.labelling ? feeAmounts.labelling : 0) + (feesActive.prep ? feeAmounts.prep : 0) + (feesActive.inbound ? feeAmounts.inbound : 0)} isNegative tooltip="Combined labelling, prep and inbound placement fees." />
+                <WaterfallRow label="Monthly Storage" value={calculation.storageFee} isNegative tooltip="Fee for warehouse space occupied." />
+                <WaterfallRow label="Marketing / Ads" value={calculation.adSpendPerUnit} isNegative highlight tooltip="The advertising cost required to generate the sale." />
+                <div className="pt-4 mt-4 border-t border-white/10 flex justify-between items-center">
+                  <span className="text-[10px] font-bold uppercase text-brandRed tracking-[0.2em]">Final Net Profit</span>
+                  <span className="text-3xl font-bold text-brandRed tracking-tighter">£{(calculation.netProfitPerUnit || 0).toFixed(2)}</span>
                 </div>
               </div>
             </section>
@@ -447,6 +535,21 @@ const App: React.FC = () => {
     </div>
   );
 };
+
+const FeeToggle = ({ label, active, amount, onToggle, onChange, tooltip }: any) => (
+  <div className="flex items-center justify-between p-3 bg-white/5 rounded-2xl border border-white/5">
+    <div className="flex items-center gap-2">
+      <button onClick={onToggle} className={`w-8 h-4 rounded-full relative transition-colors ${active ? 'bg-brandRed' : 'bg-white/10'}`}>
+        <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${active ? 'left-4.5' : 'left-0.5'}`}></div>
+      </button>
+      <span className={`text-[10px] font-bold uppercase tracking-widest ${active ? 'text-white' : 'text-brandGray'}`}>{label}</span>
+      {tooltip && <InfoTooltip text={tooltip} />}
+    </div>
+    <div className="w-16">
+      <OverrideInput label="" value={amount} onChange={onChange} isOverridden={false} suffix="£" />
+    </div>
+  </div>
+);
 
 const ProjectionCard = ({ title, revenue, profit, isPostTax, highlight, info }: any) => (
   <div className={`p-8 rounded-[2rem] border transition-all relative overflow-hidden group ${highlight ? 'bg-brandRed/10 border-brandRed/30 shadow-2xl scale-[1.03]' : 'bg-white/[0.03] border-white/10 shadow-xl'}`}>
