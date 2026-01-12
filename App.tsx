@@ -35,8 +35,8 @@ const App: React.FC = () => {
   
   // Ad Controls
   const [adControlMode, setAdControlMode] = useState<'BUDGET' | 'ROAS'>('BUDGET');
-  const [manualDailyBudget, setManualDailyBudget] = useState(150);
-  const [targetRoas, setTargetRoas] = useState(4.0);
+  const [manualDailyBudget, setManualDailyBudget] = useState<number | null>(150);
+  const [targetRoas, setTargetRoas] = useState<number | null>(4.0);
   
   const [customUnitCost, setCustomUnitCost] = useState<number | null>(null);
   const [customSrp, setCustomSrp] = useState<number | null>(null);
@@ -52,7 +52,6 @@ const App: React.FC = () => {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    // Strictly enforcing "REVIV" (case-sensitive)
     if (password === 'REVIV') {
       setIsAuthenticated(true);
       sessionStorage.setItem('fba_auth', 'true');
@@ -60,7 +59,7 @@ const App: React.FC = () => {
     } else {
       setIsAuthenticated(false);
       setError('ACCESS DENIED. INVALID CREDENTIALS.');
-      setPassword(''); // Clear field on failure
+      setPassword('');
       setTimeout(() => setError(''), 4000);
     }
   };
@@ -75,7 +74,7 @@ const App: React.FC = () => {
     PRODUCTS.find(p => p.id === selectedProductId) || PRODUCTS[0]
   , [selectedProductId]);
 
-  const retailPrice = customSrp ?? product.suggestedRetailPrice;
+  const retailPrice = Math.max(0, customSrp ?? product.suggestedRetailPrice);
   const sellingPriceExVat = retailPrice / 1.2;
 
   useEffect(() => {
@@ -84,7 +83,7 @@ const App: React.FC = () => {
   }, [selectedProductId, selectedMoqLevel]);
 
   const calculation = useMemo<CalculationResult>(() => {
-    const unitCost = customUnitCost ?? product.pricing[selectedMoqLevel].unitCost;
+    const unitCost = Math.max(0, customUnitCost ?? product.pricing[selectedMoqLevel].unitCost);
     const incVatPrice = retailPrice;
     const vatAmount = incVatPrice - sellingPriceExVat;
 
@@ -94,7 +93,7 @@ const App: React.FC = () => {
     // 2. FBA Fulfillment Fee
     const fulfillmentFee = product.fbaFee;
 
-    // 3. Storage Fees (Base vs Q4)
+    // 3. Storage Fees
     const baseStorageRate = isQ4 ? 0.45 : 0.15;
     const storageFee = baseStorageRate * (turnoverDays / 30);
     
@@ -102,7 +101,7 @@ const App: React.FC = () => {
     const returnsFee = 0.18;
 
     // 5. Inbound Placement
-    const inboundFee = inboundPlacementFee;
+    const inboundFee = inboundPlacementFee || 0;
 
     // 6. Aged Inventory Penalties
     let agedInventoryFee = 0;
@@ -114,51 +113,58 @@ const App: React.FC = () => {
     const preAdUnitProfit = incVatPrice - (unitCost + landingCostPerUnit + baseFees + vatAmount);
 
     let adSpendPerUnit = 0;
+    const sales = estimatedDailySales || 0;
+    const budget = manualDailyBudget || 0;
+    const roasTarget = targetRoas || 0;
+
     if (adControlMode === 'BUDGET') {
-      adSpendPerUnit = estimatedDailySales > 0 ? manualDailyBudget / estimatedDailySales : 0;
+      adSpendPerUnit = sales > 0 ? budget / sales : 0;
     } else {
-      adSpendPerUnit = targetRoas > 0 ? sellingPriceExVat / targetRoas : 0;
+      adSpendPerUnit = roasTarget > 0 ? sellingPriceExVat / roasTarget : 0;
     }
 
     const netProfitPerUnit = preAdUnitProfit - adSpendPerUnit;
-    const dailyRevenue = incVatPrice * estimatedDailySales;
-    const dailyNetProfit = netProfitPerUnit * estimatedDailySales;
+    const dailyRevenue = incVatPrice * sales;
+    const dailyNetProfit = netProfitPerUnit * sales;
     const recommendedUnitAdSpend = Math.max(0, preAdUnitProfit * 0.4);
-    const recommendedDailyAdSpend = recommendedUnitAdSpend * estimatedDailySales;
+    const recommendedDailyAdSpend = recommendedUnitAdSpend * sales;
+
+    // Safety check for NaN values to prevent UI crashes
+    const safeNum = (n: number) => isFinite(n) ? n : 0;
 
     return {
-      unitCost,
-      sellingPriceExVat,
-      vatAmount,
-      referralFee,
-      fulfillmentFee,
-      storageFee,
-      inboundFee,
-      agedInventoryFee,
-      returnsFee,
-      adSpendPerUnit,
-      landingCost: landingCostPerUnit,
-      netProfitPerUnit,
-      netProfitAfterTax: netProfitPerUnit * 0.75,
-      marginPercent: incVatPrice > 0 ? (netProfitPerUnit / incVatPrice) * 100 : 0,
-      roiPercent: (unitCost + landingCostPerUnit) > 0 ? (netProfitPerUnit / (unitCost + landingCostPerUnit)) * 100 : 0,
-      totalFees: baseFees + adSpendPerUnit,
-      dailyRevenue,
-      weeklyRevenue: dailyRevenue * 7,
-      monthlyRevenue: dailyRevenue * 30.44,
-      yearlyRevenue: dailyRevenue * 365,
-      dailyNetProfit,
-      weeklyNetProfit: dailyNetProfit * 7,
-      monthlyNetProfit: dailyNetProfit * 30.44,
-      yearlyNetProfit: dailyNetProfit * 365,
-      acos: sellingPriceExVat > 0 ? (adSpendPerUnit / sellingPriceExVat) * 100 : 0,
-      tacos: dailyRevenue > 0 ? ((adSpendPerUnit * estimatedDailySales) / dailyRevenue) * 100 : 0,
-      roas: adSpendPerUnit > 0 ? sellingPriceExVat / adSpendPerUnit : 0,
-      capitalRequired: (unitCost + landingCostPerUnit) * estimatedDailySales * 90,
-      recommendedDailyAdSpend,
-      maxUnitAdSpend: preAdUnitProfit,
-      effectiveDailyBudget: adSpendPerUnit * estimatedDailySales,
-      monthlyStorageFee: storageFee / (turnoverDays / 30)
+      unitCost: safeNum(unitCost),
+      sellingPriceExVat: safeNum(sellingPriceExVat),
+      vatAmount: safeNum(vatAmount),
+      referralFee: safeNum(referralFee),
+      fulfillmentFee: safeNum(fulfillmentFee),
+      storageFee: safeNum(storageFee),
+      inboundFee: safeNum(inboundFee),
+      agedInventoryFee: safeNum(agedInventoryFee),
+      returnsFee: safeNum(returnsFee),
+      adSpendPerUnit: safeNum(adSpendPerUnit),
+      landingCost: safeNum(landingCostPerUnit),
+      netProfitPerUnit: safeNum(netProfitPerUnit),
+      netProfitAfterTax: safeNum(netProfitPerUnit * 0.75),
+      marginPercent: incVatPrice > 0 ? safeNum((netProfitPerUnit / incVatPrice) * 100) : 0,
+      roiPercent: (unitCost + landingCostPerUnit) > 0 ? safeNum((netProfitPerUnit / (unitCost + landingCostPerUnit)) * 100) : 0,
+      totalFees: safeNum(baseFees + adSpendPerUnit),
+      dailyRevenue: safeNum(dailyRevenue),
+      weeklyRevenue: safeNum(dailyRevenue * 7),
+      monthlyRevenue: safeNum(dailyRevenue * 30.44),
+      yearlyRevenue: safeNum(dailyRevenue * 365),
+      dailyNetProfit: safeNum(dailyNetProfit),
+      weeklyNetProfit: safeNum(dailyNetProfit * 7),
+      monthlyNetProfit: safeNum(dailyNetProfit * 30.44),
+      yearlyNetProfit: safeNum(dailyNetProfit * 365),
+      acos: sellingPriceExVat > 0 ? safeNum((adSpendPerUnit / sellingPriceExVat) * 100) : 0,
+      tacos: dailyRevenue > 0 ? safeNum(((adSpendPerUnit * sales) / dailyRevenue) * 100) : 0,
+      roas: adSpendPerUnit > 0 ? safeNum(sellingPriceExVat / adSpendPerUnit) : 0,
+      capitalRequired: safeNum((unitCost + landingCostPerUnit) * sales * 90),
+      recommendedDailyAdSpend: safeNum(recommendedDailyAdSpend),
+      maxUnitAdSpend: safeNum(preAdUnitProfit),
+      effectiveDailyBudget: safeNum(adSpendPerUnit * sales),
+      monthlyStorageFee: safeNum(storageFee / (turnoverDays / 30 || 1))
     } as any;
   }, [product, selectedMoqLevel, customUnitCost, retailPrice, sellingPriceExVat, turnoverDays, adControlMode, manualDailyBudget, targetRoas, estimatedDailySales, landingCostPerUnit, inboundPlacementFee, isQ4]);
 
@@ -304,7 +310,7 @@ const App: React.FC = () => {
                     <OverrideInput 
                       label="" 
                       value={estimatedDailySales} 
-                      onChange={(val: any) => setEstimatedDailySales(val || 0)} 
+                      onChange={(val: any) => setEstimatedDailySales(val === null ? 0 : val)} 
                       isOverridden={false}
                       suffix="U"
                     />
@@ -382,9 +388,9 @@ const App: React.FC = () => {
                     />
                   </div>
                   {adControlMode === 'BUDGET' ? (
-                    <SliderInput label="Adjust Daily Budget" value={manualDailyBudget} min={0} max={2500} prefix="£" onChange={setManualDailyBudget} />
+                    <SliderInput label="Adjust Daily Budget" value={manualDailyBudget || 0} min={0} max={2500} prefix="£" onChange={setManualDailyBudget} />
                   ) : (
-                    <SliderInput label="Adjust Target ROAS" value={targetRoas} min={1} max={20} step={0.1} suffix="x" onChange={setTargetRoas} />
+                    <SliderInput label="Adjust Target ROAS" value={targetRoas || 0} min={1} max={20} step={0.1} suffix="x" onChange={setTargetRoas} />
                   )}
                 </div>
                 
@@ -393,14 +399,14 @@ const App: React.FC = () => {
                     <span className="text-[8px] font-bold text-brandGray uppercase tracking-widest mb-1 block">Spend Result</span>
                     <div className="flex justify-between items-baseline">
                       <span className="text-xl font-bold text-white tracking-tight">£{(calculation as any).effectiveDailyBudget.toFixed(2)}</span>
-                      <span className="text-sm font-bold text-brandRed tracking-tight">{calculation.roas.toFixed(2)}x ROAS</span>
+                      <span className="text-sm font-bold text-brandRed tracking-tight">{(calculation.roas || 0).toFixed(2)}x ROAS</span>
                     </div>
                   </div>
                   <span className="text-[8px] font-bold text-brandRed uppercase tracking-widest mb-2 flex items-center gap-1">
                     Recommendation
                     <InfoTooltip text="Calculated based on 40% margin allocation for scale." />
                   </span>
-                  <p className="text-xl font-bold tracking-tighter">£{Math.round(calculation.recommendedDailyAdSpend).toLocaleString()}</p>
+                  <p className="text-xl font-bold tracking-tighter">£{Math.round(calculation.recommendedDailyAdSpend || 0).toLocaleString()}</p>
                 </div>
               </div>
 
@@ -426,7 +432,7 @@ const App: React.FC = () => {
                   <WaterfallRow label="Marketing / Ads" value={calculation.adSpendPerUnit} isNegative highlight tooltip="The advertising cost required to generate the sale." />
                   <div className="pt-4 mt-4 border-t border-white/10 flex justify-between items-center">
                     <span className="text-[10px] font-bold uppercase text-brandRed tracking-[0.2em]">Final Net Profit</span>
-                    <span className="text-3xl font-bold text-brandRed tracking-tighter">£{calculation.netProfitPerUnit.toFixed(2)}</span>
+                    <span className="text-3xl font-bold text-brandRed tracking-tighter">£{(calculation.netProfitPerUnit || 0).toFixed(2)}</span>
                   </div>
                 </div>
               </div>
@@ -455,11 +461,11 @@ const ProjectionCard = ({ title, revenue, profit, isPostTax, highlight, info }: 
     <div className="space-y-6">
       <div>
         <p className="text-[8px] font-bold text-white/30 uppercase mb-1 tracking-widest">Revenue</p>
-        <p className="text-2xl font-bold tracking-tight">£{Math.round(revenue).toLocaleString()}</p>
+        <p className="text-2xl font-bold tracking-tight">£{Math.round(revenue || 0).toLocaleString()}</p>
       </div>
       <div className="pt-4 border-t border-white/5">
         <p className="text-[8px] font-bold text-brandRed uppercase mb-1 tracking-widest">{isPostTax ? 'Post-Tax Net' : 'Gross Net Profit'}</p>
-        <p className={`text-4xl font-bold tracking-tighter ${highlight ? 'text-brandRed' : 'text-white'}`}>£{Math.round(profit).toLocaleString()}</p>
+        <p className={`text-4xl font-bold tracking-tighter ${highlight ? 'text-brandRed' : 'text-white'}`}>£{Math.round(profit || 0).toLocaleString()}</p>
       </div>
     </div>
   </div>
@@ -472,7 +478,7 @@ const WaterfallRow = ({ label, value, isNegative, isStart, highlight, tooltip }:
       {tooltip && <InfoTooltip text={tooltip} />}
     </span>
     <span className={`font-bold tracking-tight ${isStart ? 'text-base text-white' : highlight ? 'text-brandRed text-base' : 'text-sm text-white/80'}`}>
-      £{Math.abs(value).toFixed(2)}
+      £{Math.abs(value || 0).toFixed(2)}
     </span>
   </div>
 );
@@ -481,20 +487,24 @@ const OverrideInput = ({ label, value, onChange, isOverridden, suffix = "£" }: 
   const [displayValue, setDisplayValue] = useState(value?.toString() || "");
 
   useEffect(() => {
-    const parsed = parseFloat(displayValue);
-    if (parsed !== value) {
-      setDisplayValue(value?.toString() || "");
+    const currentStr = value === null ? "" : value.toString();
+    if (displayValue !== currentStr && !isNaN(parseFloat(displayValue))) {
+       setDisplayValue(currentStr);
+    } else if (value !== null && displayValue === "") {
+       setDisplayValue(currentStr);
     }
   }, [value]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVal = e.target.value;
     setDisplayValue(newVal);
+    if (newVal === "" || newVal === "-" || newVal === ".") {
+      onChange(null);
+      return;
+    }
     const parsed = parseFloat(newVal);
     if (!isNaN(parsed)) {
       onChange(parsed);
-    } else if (newVal === "") {
-      onChange(null);
     }
   };
 
@@ -524,7 +534,7 @@ const SliderInput = ({ label, value, min, max, step = 1, prefix = '', suffix = '
   <div>
     <div className="flex justify-between items-end mb-4">
       <label className="text-[9px] font-bold uppercase text-brandGray tracking-widest">{label}</label>
-      <span className="text-2xl font-bold text-brandRed tracking-tighter">{prefix}{value.toLocaleString()}<small className="text-[10px] ml-1 uppercase font-semibold text-brandGray opacity-60">{suffix}</small></span>
+      <span className="text-2xl font-bold text-brandRed tracking-tighter">{prefix}{(value || 0).toLocaleString()}<small className="text-[10px] ml-1 uppercase font-semibold text-brandGray opacity-60">{suffix}</small></span>
     </div>
     <div className="relative h-1.5 w-full bg-white/5 rounded-full overflow-hidden group">
       <input 
@@ -532,13 +542,13 @@ const SliderInput = ({ label, value, min, max, step = 1, prefix = '', suffix = '
         min={min} 
         max={max} 
         step={step} 
-        value={value} 
+        value={value || 0} 
         onChange={(e) => onChange(Number(e.target.value))} 
         className="absolute inset-0 w-full h-full accent-brandRed bg-transparent cursor-pointer appearance-none z-10 opacity-0" 
       />
       <div 
         className="absolute top-0 left-0 h-full bg-brandRed shadow-[0_0_15px_rgba(209,36,42,0.5)] transition-all pointer-events-none" 
-        style={{ width: `${((value - min) / (max - min)) * 100}%` }}
+        style={{ width: `${(((value || 0) - min) / (max - min)) * 100}%` }}
       ></div>
     </div>
   </div>

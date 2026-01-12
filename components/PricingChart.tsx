@@ -25,25 +25,29 @@ interface PricingChartProps {
 }
 
 const PricingChart: React.FC<PricingChartProps> = ({ data }) => {
-  const totalRevenue = data.unitCost + data.totalFees + data.vatAmount + data.landingCost + data.netProfitPerUnit;
+  // Defensive total calculation
+  const totalRevenue = (data.unitCost || 0) + (data.totalFees || 0) + (data.vatAmount || 0) + (data.landingCost || 0) + (data.netProfitPerUnit || 0);
 
+  // Pie chart does not support negative values. We filter them for visualization safety.
   const pieData = [
-    { name: 'COGS', value: data.unitCost, color: '#222222' },
-    { name: 'Logistics', value: data.landingCost + data.fulfillmentFee + data.storageFee, color: '#444444' },
-    { name: 'Amazon Fees', value: data.referralFee, color: '#111111' },
-    { name: 'Ads', value: data.adSpendPerUnit, color: '#D1242A' },
-    { name: 'VAT (Tax)', value: data.vatAmount, color: '#666666' },
-    { name: 'Net Profit', value: data.netProfitPerUnit, color: '#FFFFFF' },
-  ].filter(d => d.value > 0.001 || d.name === 'Net Profit');
+    { name: 'COGS', value: Math.max(0, data.unitCost || 0), color: '#222222' },
+    { name: 'Logistics', value: Math.max(0, (data.landingCost || 0) + (data.fulfillmentFee || 0) + (data.storageFee || 0)), color: '#444444' },
+    { name: 'Amazon Fees', value: Math.max(0, data.referralFee || 0), color: '#111111' },
+    { name: 'Ads', value: Math.max(0, data.adSpendPerUnit || 0), color: '#D1242A' },
+    { name: 'VAT (Tax)', value: Math.max(0, data.vatAmount || 0), color: '#666666' },
+    { name: 'Net Profit', value: Math.max(0, data.netProfitPerUnit || 0), color: '#FFFFFF' },
+  ].filter(d => d.value > 0.001);
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
+      const value = payload[0].value || 0;
+      const percentage = totalRevenue > 0 ? (value / totalRevenue) * 100 : 0;
       return (
         <div className="bg-black/95 border border-white/20 p-4 rounded-2xl shadow-2xl backdrop-blur-xl">
           <p className="text-[9px] font-bold text-brandGray uppercase tracking-widest mb-1">{payload[0].name}</p>
-          <p className="text-xl font-bold text-white tracking-tighter">£{payload[0].value.toFixed(2)}</p>
+          <p className="text-xl font-bold text-white tracking-tighter">£{value.toFixed(2)}</p>
           <p className="text-[8px] font-bold text-brandRed uppercase mt-1 tracking-widest">
-            {((payload[0].value / totalRevenue) * 100).toFixed(1)}% of Revenue
+            {percentage.toFixed(1)}% of Revenue
           </p>
         </div>
       );
@@ -64,23 +68,23 @@ const PricingChart: React.FC<PricingChartProps> = ({ data }) => {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 sm:gap-10">
            <RatioValue 
             label="Net Margin" 
-            value={`${data.marginPercent.toFixed(1)}%`} 
+            value={`${(data.marginPercent || 0).toFixed(1)}%`} 
             highlight 
             info="The percentage of revenue that is actual profit after all expenses, including ads and VAT."
            />
            <RatioValue 
             label="Unit ROI" 
-            value={`${data.roiPercent.toFixed(0)}%`} 
+            value={`${(data.roiPercent || 0).toFixed(0)}%`} 
             info="Return on Investment. For every £1 you spend on manufacturing and shipping, this is how much profit you get back."
            />
            <RatioValue 
             label="Current ROAS" 
-            value={`${data.roas.toFixed(1)}x`} 
+            value={`${(data.roas || 0).toFixed(1)}x`} 
             info="Return on Ad Spend. Total revenue divided by total ad spend. Higher is more efficient."
            />
            <RatioValue 
             label="TACOS" 
-            value={`${data.tacos.toFixed(1)}%`} 
+            value={`${(data.tacos || 0).toFixed(1)}%`} 
             info="Total Advertising Cost of Sale. Measures ad spend relative to total revenue. Targets are usually below 15%."
            />
         </div>
@@ -97,10 +101,11 @@ const PricingChart: React.FC<PricingChartProps> = ({ data }) => {
               </div>
               <div className="text-right">
                 <div className={`text-xs font-bold ${item.name === 'Net Profit' ? 'text-brandRed' : 'text-white/90'}`}>£{item.value.toFixed(2)}</div>
-                <div className="text-[7px] font-bold text-white/30 tracking-widest uppercase">{((item.value / totalRevenue) * 100).toFixed(1)}%</div>
+                <div className="text-[7px] font-bold text-white/30 tracking-widest uppercase">{totalRevenue > 0 ? ((item.value / totalRevenue) * 100).toFixed(1) : 0}%</div>
               </div>
             </div>
           ))}
+          {pieData.length === 0 && <p className="text-[10px] text-brandGray py-4 text-center uppercase tracking-widest opacity-40">No cost data available</p>}
         </div>
 
         <div className="lg:col-span-8 h-[380px] relative">
@@ -112,7 +117,7 @@ const PricingChart: React.FC<PricingChartProps> = ({ data }) => {
                 cy="50%"
                 innerRadius={100}
                 outerRadius={135}
-                paddingAngle={6}
+                paddingAngle={pieData.length > 1 ? 6 : 0}
                 dataKey="value"
                 stroke="none"
                 animationDuration={1000}
@@ -138,7 +143,7 @@ const PricingChart: React.FC<PricingChartProps> = ({ data }) => {
                <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent my-2"></div>
                
                <span className="text-[8px] font-bold text-brandRed uppercase tracking-[0.3em] mb-1">Net Profit</span>
-               <span className="text-2xl font-bold text-brandRed tracking-tighter leading-none italic">£{data.netProfitPerUnit.toFixed(2)}</span>
+               <span className="text-2xl font-bold text-brandRed tracking-tighter leading-none italic">£{(data.netProfitPerUnit || 0).toFixed(2)}</span>
                <span className="text-[8px] font-bold text-brandRed/60 uppercase mt-1 tracking-widest">Per Unit</span>
              </div>
           </div>
