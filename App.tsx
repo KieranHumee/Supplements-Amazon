@@ -7,7 +7,7 @@ import PricingChart from './components/PricingChart';
 // Reusable Info Tooltip Component
 const InfoTooltip: React.FC<{ text: string }> = ({ text }) => (
   <div className="group relative inline-block ml-2 align-middle">
-    <div className="w-3.5 h-3.5 rounded-full border border-white/20 flex items-center justify-center text-[8px] font-bold text-white/40 group-hover:border-brandRed group-hover:text-brandRed transition-colors cursor-help">
+    <div className="w-3.5 h-3.5 rounded-full border border-white/20 flex items-center justify-center text-[8px] font-bold text-white/40 group-hover:border-emerald-500 group-hover:text-emerald-500 transition-colors cursor-help">
       i
     </div>
     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 p-3 bg-black/95 border border-white/10 rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-[100] backdrop-blur-xl text-left">
@@ -32,7 +32,6 @@ const App: React.FC = () => {
   const [estimatedDailySales, setEstimatedDailySales] = useState(20);
   const [isQ4, setIsQ4] = useState(false);
   
-  // Extra Amazon Fees
   const [feesActive, setFeesActive] = useState({
     labelling: false,
     prep: false,
@@ -48,7 +47,6 @@ const App: React.FC = () => {
     storagePeak: 0.25
   });
 
-  // Ad Controls
   const [adControlMode, setAdControlMode] = useState<'BUDGET' | 'ROAS'>('BUDGET');
   const [manualDailyBudget, setManualDailyBudget] = useState<number | null>(150);
   const [targetRoas, setTargetRoas] = useState<number | null>(4.0);
@@ -57,7 +55,6 @@ const App: React.FC = () => {
   const [customSrp, setCustomSrp] = useState<number | null>(null);
   const [showTax, setShowTax] = useState(true);
 
-  // Check session storage on mount
   useEffect(() => {
     const auth = sessionStorage.getItem('fba_auth');
     if (auth === 'true') {
@@ -101,29 +98,20 @@ const App: React.FC = () => {
     const unitCost = Math.max(0, customUnitCost ?? product.pricing[selectedMoqLevel].unitCost);
     const incVatPrice = retailPrice;
     const vatAmount = incVatPrice - sellingPriceExVat;
-
-    // 1. Referral Fee
     const referralFee = sellingPriceExVat * product.referralFeePercent;
-
-    // 2. FBA Fulfillment Fee
     const fulfillmentFee = product.fbaFee;
 
-    // 3. Storage Fees
     let storageFee = 0;
     if (feesActive.storage) {
       const rate = isQ4 ? feeAmounts.storagePeak : feeAmounts.storageStandard;
       storageFee = rate * (turnoverDays / 30);
     }
     
-    // 4. Returns Processing
     const returnsFee = 0.18;
-
-    // 5. Extra Amazon Fees
     const extraFees = (feesActive.labelling ? feeAmounts.labelling : 0) + 
                      (feesActive.prep ? feeAmounts.prep : 0) + 
                      (feesActive.inbound ? feeAmounts.inbound : 0);
 
-    // 6. Aged Inventory Penalties
     let agedInventoryFee = 0;
     if (turnoverDays > 365) agedInventoryFee = 2.50;
     else if (turnoverDays > 271) agedInventoryFee = 1.25;
@@ -187,6 +175,12 @@ const App: React.FC = () => {
     } as any;
   }, [product, selectedMoqLevel, customUnitCost, retailPrice, sellingPriceExVat, turnoverDays, adControlMode, manualDailyBudget, targetRoas, estimatedDailySales, landingCostPerUnit, feesActive, feeAmounts, isQ4]);
 
+  const isProfitable = calculation.netProfitPerUnit > 0;
+  const accentColorClass = isProfitable ? 'text-emerald-500' : 'text-brandRed';
+  const accentBgClass = isProfitable ? 'bg-emerald-500' : 'bg-brandRed';
+  const accentBorderClass = isProfitable ? 'border-emerald-500/30' : 'border-brandRed/30';
+  const accentShadowClass = isProfitable ? 'shadow-emerald-500/20' : 'shadow-brandRed/20';
+
   const exportToCsv = () => {
     const rows = [
       ['Metric', 'Value'],
@@ -246,11 +240,7 @@ const App: React.FC = () => {
                 className={`w-full bg-black/60 border ${error ? 'border-brandRed' : 'border-white/10'} rounded-2xl px-6 py-4 text-center text-lg font-bold tracking-[0.3em] focus:outline-none focus:border-brandRed/50 transition-all placeholder:text-white/10 placeholder:tracking-normal`}
               />
             </div>
-
-            {error && (
-              <p className="text-[9px] font-bold text-brandRed text-center tracking-widest animate-pulse uppercase">{error}</p>
-            )}
-
+            {error && <p className="text-[9px] font-bold text-brandRed text-center tracking-widest animate-pulse uppercase">{error}</p>}
             <button 
               type="submit"
               disabled={!password}
@@ -259,10 +249,7 @@ const App: React.FC = () => {
               Authorize Access
             </button>
           </form>
-
-          <footer className="mt-8 text-center opacity-20">
-            <p className="text-[7px] font-bold text-brandGray uppercase tracking-[0.5em]">Classified Infrastructure // Reviv Dynamics</p>
-          </footer>
+          <footer className="mt-8 text-center opacity-20"><p className="text-[7px] font-bold text-brandGray uppercase tracking-[0.5em]">Classified Infrastructure // Reviv Dynamics</p></footer>
         </div>
       </div>
     );
@@ -271,8 +258,8 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#050505] text-white font-montserrat selection:bg-brandRed/30 pb-20 overflow-x-hidden">
       <div className="fixed inset-0 pointer-events-none opacity-5">
-        <div className="absolute top-[-10%] right-[-5%] w-[50%] h-[50%] bg-brandRed rounded-full blur-[180px]"></div>
-        <div className="absolute bottom-[-10%] left-[-5%] w-[40%] h-[40%] bg-brandRed rounded-full blur-[150px] opacity-20"></div>
+        <div className={`absolute top-[-10%] right-[-5%] w-[50%] h-[50%] ${accentBgClass} rounded-full blur-[180px] transition-colors duration-1000`}></div>
+        <div className={`absolute bottom-[-10%] left-[-5%] w-[40%] h-[40%] ${accentBgClass} rounded-full blur-[150px] opacity-20 transition-colors duration-1000`}></div>
       </div>
 
       <header className="relative z-50 border-b border-white/5 backdrop-blur-2xl bg-black/60 px-6 py-5">
@@ -285,12 +272,12 @@ const App: React.FC = () => {
           <div className="flex items-center gap-4">
             <button 
               onClick={exportToCsv}
-              className="px-6 py-2 rounded-full border border-brandRed/40 text-brandRed text-[9px] font-bold uppercase hover:bg-brandRed hover:text-white transition-all shadow-lg shadow-brandRed/10 flex items-center gap-2"
+              className={`px-6 py-2 rounded-full border border-emerald-500/40 text-emerald-500 text-[9px] font-bold uppercase hover:bg-emerald-500 hover:text-white transition-all shadow-lg shadow-emerald-500/10 flex items-center gap-2`}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              Export Spreadsheet
+              Export CSV
             </button>
             <div className="flex items-center gap-4 bg-white/5 p-1 rounded-full border border-white/10 shadow-inner">
               <select 
@@ -312,11 +299,7 @@ const App: React.FC = () => {
                 ))}
               </div>
             </div>
-            <button 
-              onClick={handleLogout}
-              className="p-2.5 rounded-full bg-white/5 border border-white/10 hover:bg-brandRed/20 hover:border-brandRed/40 transition-all group"
-              title="Sign Out"
-            >
+            <button onClick={handleLogout} className="p-2.5 rounded-full bg-white/5 border border-white/10 hover:bg-brandRed/20 hover:border-brandRed/40 transition-all group" title="Sign Out">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-brandGray group-hover:text-brandRed" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>
@@ -326,18 +309,21 @@ const App: React.FC = () => {
       </header>
 
       <main className="relative z-10 max-w-7xl mx-auto px-6 py-8 space-y-8">
+        {/* Main Chart Section */}
         <section className="bg-white/[0.02] border border-white/10 rounded-[2.5rem] p-10 shadow-2xl backdrop-blur-md overflow-hidden relative">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-brandRed/10 blur-[80px]"></div>
+          <div className={`absolute top-0 right-0 w-32 h-32 ${accentBgClass} opacity-10 blur-[80px] transition-colors duration-1000`}></div>
           <PricingChart data={calculation} />
         </section>
 
+        {/* Projection Cards Row */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <ProjectionCard 
             title="Daily" 
             revenue={calculation.dailyRevenue} 
             profit={showTax ? calculation.dailyNetProfit * 0.75 : calculation.dailyNetProfit} 
             isPostTax={showTax} 
-            info="Estimated performance over a 24-hour cycle based on your current unit economics and sales velocity."
+            accentColor={isProfitable ? 'emerald' : 'brandRed'}
+            info="Estimated 24-hour cycle performance."
           />
           <ProjectionCard 
             title="Weekly" 
@@ -345,29 +331,33 @@ const App: React.FC = () => {
             profit={showTax ? calculation.weeklyNetProfit * 0.75 : calculation.weeklyNetProfit} 
             isPostTax={showTax} 
             highlight 
-            info="Crucial for inventory planning. Shows your expected weekly cash flow and profit generation."
+            accentColor={isProfitable ? 'emerald' : 'brandRed'}
+            info="Expected weekly cash flow and profit generation."
           />
           <ProjectionCard 
             title="Monthly" 
             revenue={calculation.monthlyRevenue} 
             profit={showTax ? calculation.monthlyNetProfit * 0.75 : calculation.monthlyNetProfit} 
             isPostTax={showTax} 
-            info="The macro view. Projected 30-day performance. Use this to determine if your product meets monthly ROI targets."
+            accentColor={isProfitable ? 'emerald' : 'brandRed'}
+            info="Projected 30-day performance. Key for long-term ROI."
           />
         </div>
 
+        {/* Actionable Controls Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          {/* Left Column: Economics */}
           <div className="lg:col-span-4 space-y-6">
-            <section className="bg-white/[0.03] border border-white/10 rounded-3xl p-8 shadow-xl backdrop-blur-md">
+            <section className="bg-white/[0.03] border border-white/10 rounded-3xl p-8 shadow-xl backdrop-blur-md h-full flex flex-col">
               <div className="flex justify-between items-start mb-8">
                 <h3 className="text-[10px] font-bold uppercase text-brandRed tracking-widest flex items-center gap-2">
                   <div className="w-1 h-3 bg-brandRed"></div>
                   Primary Economics
-                  <InfoTooltip text="Core business variables. Cost per unit includes manufacturing FOB price. Turnover days affect storage and aged stock penalties." />
+                  <InfoTooltip text="Core variables affecting manufacturing and sales velocity." />
                 </h3>
                 <div className="flex flex-col items-end">
                   <span className="text-[8px] font-bold text-brandGray uppercase tracking-widest mb-1">Units / Day</span>
-                  <div className="w-24">
+                  <div className="w-20">
                     <OverrideInput 
                       label="" 
                       value={estimatedDailySales} 
@@ -378,27 +368,32 @@ const App: React.FC = () => {
                   </div>
                 </div>
               </div>
-              <div className="space-y-6">
-                <SliderInput label="Inventory Turnover (Days)" value={turnoverDays} min={1} max={365} suffix=" Days" onChange={setTurnoverDays} />
-                <div className="pt-6 border-t border-white/5 grid grid-cols-1 gap-6">
-                  <div className="grid grid-cols-2 gap-4">
-                    <OverrideInput label="Cost Per Unit" value={calculation.unitCost} onChange={setCustomUnitCost} isOverridden={customUnitCost !== null} />
-                    <OverrideInput label="Retail (Inc VAT)" value={retailPrice} onChange={setCustomSrp} isOverridden={customSrp !== null} />
-                  </div>
-                  <div className="grid grid-cols-1 gap-4">
-                    <div className="flex flex-col">
-                      <span className="text-[8px] font-bold uppercase text-brandGray tracking-widest mb-2">Landing Cost (Shipping)</span>
-                      <OverrideInput label="" value={landingCostPerUnit} onChange={setLandingCostPerUnit} isOverridden={false} suffix="£" />
-                    </div>
+              
+              <div className="space-y-8 flex-grow">
+                <SliderInput 
+                  label="Inventory Turnover" 
+                  value={turnoverDays} 
+                  min={1} max={365} 
+                  suffix=" Days" 
+                  onChange={setTurnoverDays} 
+                  accentColor={isProfitable ? 'emerald' : 'brandRed'}
+                />
+                
+                <div className="pt-6 border-t border-white/5 grid grid-cols-2 gap-4">
+                  <OverrideInput label="Factory Unit Cost" value={calculation.unitCost} onChange={setCustomUnitCost} isOverridden={customUnitCost !== null} />
+                  <OverrideInput label="Landing (Ship)" value={landingCostPerUnit} onChange={setLandingCostPerUnit} isOverridden={false} />
+                  <div className="col-span-2">
+                    <OverrideInput label="Target Retail (Inc VAT)" value={retailPrice} onChange={setCustomSrp} isOverridden={customSrp !== null} />
                   </div>
                 </div>
+
                 <div className="pt-6 border-t border-white/5 space-y-4">
                   <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
                     <div className="flex flex-col">
-                      <span className="text-[9px] font-bold text-brandGray uppercase tracking-widest">Post-Tax Projection</span>
-                      <span className="text-[7px] text-white/40 uppercase font-semibold">UK Corporation Tax (25%)</span>
+                      <span className="text-[9px] font-bold text-brandGray uppercase tracking-widest">Tax Projection</span>
+                      <span className="text-[7px] text-white/40 uppercase font-semibold">UK Corp Tax (25%)</span>
                     </div>
-                    <button onClick={() => setShowTax(!showTax)} className={`w-12 h-6 rounded-full relative transition-colors ${showTax ? 'bg-brandRed shadow-lg shadow-brandRed/20' : 'bg-white/10'}`}>
+                    <button onClick={() => setShowTax(!showTax)} className={`w-12 h-6 rounded-full relative transition-all ${showTax ? (isProfitable ? 'bg-emerald-500 shadow-lg shadow-emerald-500/20' : 'bg-brandRed shadow-lg shadow-brandRed/20') : 'bg-white/10'}`}>
                       <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${showTax ? 'left-7' : 'left-1'}`}></div>
                     </button>
                   </div>
@@ -407,83 +402,50 @@ const App: React.FC = () => {
             </section>
           </div>
 
+          {/* Right Column: Fees and Waterfall */}
           <div className="lg:col-span-8 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Amazon Extra Fees Section */}
+              {/* Fee Management Card */}
               <section className="bg-white/[0.03] border border-white/10 rounded-3xl p-8 shadow-xl">
                 <h3 className="text-[10px] font-bold uppercase text-brandRed tracking-widest flex items-center gap-2 mb-8">
                   <div className="w-1 h-3 bg-brandRed"></div>
                   Amazon Extra Fees
-                  <InfoTooltip text="Optional FBA costs that may apply depending on your prep requirements and seasonal storage." />
                 </h3>
-                <div className="space-y-4">
-                  <FeeToggle 
-                    label="FNSKU Labelling" 
-                    active={feesActive.labelling} 
-                    amount={feeAmounts.labelling}
-                    onToggle={() => setFeesActive({...feesActive, labelling: !feesActive.labelling})}
-                    onChange={(val) => setFeeAmounts({...feeAmounts, labelling: val})}
-                    tooltip="Charged if Amazon labels your products instead of you or your supplier."
-                  />
-                  <FeeToggle 
-                    label="Prep / Packaging" 
-                    active={feesActive.prep} 
-                    amount={feeAmounts.prep}
-                    onToggle={() => setFeesActive({...feesActive, prep: !feesActive.prep})}
-                    onChange={(val) => setFeeAmounts({...feeAmounts, prep: val})}
-                    tooltip="Charged for polybagging, bubble wrap, or safety prep if your product is not compliant."
-                  />
-                  <FeeToggle 
-                    label="Inbound Placement" 
-                    active={feesActive.inbound} 
-                    amount={feeAmounts.inbound}
-                    onToggle={() => setFeesActive({...feesActive, inbound: !feesActive.inbound})}
-                    onChange={(val) => setFeeAmounts({...feeAmounts, inbound: val})}
-                    tooltip="Charged if Amazon distributes your inventory across multiple fulfilment centres."
-                  />
-                  <div className="pt-4 border-t border-white/5">
+                <div className="space-y-3">
+                  <FeeToggle label="FNSKU Labelling" active={feesActive.labelling} amount={feeAmounts.labelling} onToggle={() => setFeesActive({...feesActive, labelling: !feesActive.labelling})} onChange={(val) => setFeeAmounts({...feeAmounts, labelling: val})} tooltip="Amazon labelling service." accentColor={isProfitable ? 'emerald' : 'brandRed'} />
+                  <FeeToggle label="Prep / Packaging" active={feesActive.prep} amount={feeAmounts.prep} onToggle={() => setFeesActive({...feesActive, prep: !feesActive.prep})} onChange={(val) => setFeeAmounts({...feeAmounts, prep: val})} tooltip="Bubble wrap/polybagging." accentColor={isProfitable ? 'emerald' : 'brandRed'} />
+                  <FeeToggle label="Inbound Placement" active={feesActive.inbound} amount={feeAmounts.inbound} onToggle={() => setFeesActive({...feesActive, inbound: !feesActive.inbound})} onChange={(val) => setFeeAmounts({...feeAmounts, inbound: val})} tooltip="Distribution fee." accentColor={isProfitable ? 'emerald' : 'brandRed'} />
+                  
+                  <div className="pt-4 border-t border-white/5 mt-4">
                     <div className="flex justify-between items-center mb-4">
                       <div className="flex items-center gap-2">
-                        <button onClick={() => setFeesActive({...feesActive, storage: !feesActive.storage})} className={`w-8 h-4 rounded-full relative transition-colors ${feesActive.storage ? 'bg-brandRed' : 'bg-white/10'}`}>
+                        <button onClick={() => setFeesActive({...feesActive, storage: !feesActive.storage})} className={`w-8 h-4 rounded-full relative transition-all ${feesActive.storage ? (isProfitable ? 'bg-emerald-500' : 'bg-brandRed') : 'bg-white/10'}`}>
                           <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${feesActive.storage ? 'left-4.5' : 'left-0.5'}`}></div>
                         </button>
-                        <span className="text-[10px] font-bold text-white uppercase tracking-widest">Storage Mode</span>
-                        <InfoTooltip text="Charged per cubic metre per month for storing your inventory at Amazon warehouses." />
+                        <span className="text-[10px] font-bold text-white uppercase tracking-widest">Storage</span>
                       </div>
-                      <button onClick={() => setIsQ4(!isQ4)} className={`px-4 py-1.5 rounded-full text-[8px] font-bold uppercase transition-all ${isQ4 ? 'bg-brandRed text-white' : 'bg-white/5 text-brandGray border border-white/10'}`}>
-                        {isQ4 ? 'Peak (Oct-Dec)' : 'Standard (Jan-Sep)'}
+                      <button onClick={() => setIsQ4(!isQ4)} className={`px-4 py-1.5 rounded-full text-[8px] font-bold uppercase transition-all ${isQ4 ? (isProfitable ? 'bg-emerald-500/20 text-emerald-500 border border-emerald-500/30' : 'bg-brandRed/20 text-brandRed border border-brandRed/30') : 'bg-white/5 text-brandGray border border-white/10'}`}>
+                        {isQ4 ? 'Peak (Oct-Dec)' : 'Standard'}
                       </button>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
-                      <div className="flex-1">
-                        <span className="text-[7px] text-brandGray font-bold uppercase block mb-1">Jan - Sep Fee</span>
-                        <OverrideInput label="" value={feeAmounts.storageStandard} onChange={(val:any) => setFeeAmounts({...feeAmounts, storageStandard: val})} isOverridden={false} suffix="£" />
-                      </div>
-                      <div className="flex-1">
-                        <span className="text-[7px] text-brandGray font-bold uppercase block mb-1">Oct - Dec Fee</span>
-                        <OverrideInput label="" value={feeAmounts.storagePeak} onChange={(val:any) => setFeeAmounts({...feeAmounts, storagePeak: val})} isOverridden={false} suffix="£" />
-                      </div>
+                      <OverrideInput label="Jan-Sep Fee" value={feeAmounts.storageStandard} onChange={(val:any) => setFeeAmounts({...feeAmounts, storageStandard: val})} isOverridden={false} />
+                      <OverrideInput label="Oct-Dec Fee" value={feeAmounts.storagePeak} onChange={(val:any) => setFeeAmounts({...feeAmounts, storagePeak: val})} isOverridden={false} />
                     </div>
                   </div>
                 </div>
               </section>
 
-              {/* Ads Strategy Section */}
+              {/* Marketing Management Card */}
               <section className="bg-white/[0.03] border border-white/10 rounded-3xl p-8 shadow-xl">
                 <div className="flex justify-between items-center mb-8">
                   <h3 className="text-[10px] font-bold uppercase text-brandRed tracking-widest flex items-center gap-2">
                     <div className="w-1 h-3 bg-brandRed"></div>
-                    Advertising Strategy
+                    Ads Strategy
                   </h3>
                   <div className="flex bg-black/40 p-1 rounded-xl border border-white/5">
-                    <button 
-                      onClick={() => setAdControlMode('BUDGET')}
-                      className={`px-3 py-1.5 rounded-lg text-[8px] font-bold uppercase transition-all ${adControlMode === 'BUDGET' ? 'bg-brandRed text-white shadow-lg shadow-brandRed/20' : 'text-brandGray'}`}
-                    >Budget</button>
-                    <button 
-                      onClick={() => setAdControlMode('ROAS')}
-                      className={`px-3 py-1.5 rounded-lg text-[8px] font-bold uppercase transition-all ${adControlMode === 'ROAS' ? 'bg-brandRed text-white shadow-lg shadow-brandRed/20' : 'text-brandGray'}`}
-                    >ROAS</button>
+                    <button onClick={() => setAdControlMode('BUDGET')} className={`px-3 py-1.5 rounded-lg text-[8px] font-bold uppercase transition-all ${adControlMode === 'BUDGET' ? (isProfitable ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'bg-brandRed text-white shadow-lg shadow-brandRed/20') : 'text-brandGray'}`}>Budget</button>
+                    <button onClick={() => setAdControlMode('ROAS')} className={`px-3 py-1.5 rounded-lg text-[8px] font-bold uppercase transition-all ${adControlMode === 'ROAS' ? (isProfitable ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'bg-brandRed text-white shadow-lg shadow-brandRed/20') : 'text-brandGray'}`}>ROAS</button>
                   </div>
                 </div>
                 <div className="space-y-6">
@@ -491,37 +453,39 @@ const App: React.FC = () => {
                     <OverrideInput label="Daily Budget" value={manualDailyBudget} onChange={setManualDailyBudget} isOverridden={adControlMode === 'ROAS'} suffix="£" />
                     <OverrideInput label="Target ROAS" value={targetRoas} onChange={setTargetRoas} isOverridden={adControlMode === 'BUDGET'} suffix="x" />
                   </div>
-                  <div className="p-5 bg-white/[0.02] border border-dashed border-white/10 rounded-2xl">
-                    <span className="text-[8px] font-bold text-brandGray uppercase tracking-widest mb-1 block">Daily Result</span>
+                  <div className="p-6 bg-white/[0.02] border border-dashed border-white/10 rounded-[1.5rem] flex flex-col justify-center">
+                    <span className="text-[8px] font-bold text-brandGray uppercase tracking-widest mb-1 block">Projected Daily Spend</span>
                     <div className="flex justify-between items-baseline">
-                      <span className="text-xl font-bold text-white tracking-tight">£{(calculation as any).effectiveDailyBudget.toFixed(2)}</span>
-                      <span className="text-sm font-bold text-brandRed tracking-tight">{(calculation.roas || 0).toFixed(2)}x ROAS</span>
+                      <span className="text-2xl font-bold text-white tracking-tight">£{(calculation as any).effectiveDailyBudget.toFixed(2)}</span>
+                      <span className={`text-sm font-bold tracking-tight ${accentColorClass}`}>{(calculation.roas || 0).toFixed(2)}x ROAS</span>
                     </div>
                   </div>
                 </div>
               </section>
             </div>
 
+            {/* Waterfall Summary Card */}
             <section className="bg-white/[0.03] border border-white/10 rounded-3xl p-8 shadow-xl">
               <div className="flex justify-between items-center mb-6">
-                <span className="text-[9px] font-bold text-brandGray uppercase tracking-widest flex items-center gap-1">
-                  FBA Fee Audit & Waterfall
-                  <InfoTooltip text="A comprehensive trace of your retail price minus all platform costs." />
-                </span>
-                <span className="text-[7px] text-white/20 uppercase tracking-widest">Per Unit Logic</span>
+                <span className="text-[9px] font-bold text-brandGray uppercase tracking-widest">FBA Fee Audit & Waterfall</span>
+                <span className="text-[7px] text-white/20 uppercase tracking-widest">Per Unit Ledger</span>
               </div>
-              <div className="space-y-3">
-                <WaterfallRow label="Gross Price" value={retailPrice} isStart />
-                <WaterfallRow label="VAT (20%)" value={calculation.vatAmount} isNegative tooltip="VAT collected on behalf of the government." />
-                <WaterfallRow label="COGS + Landing" value={calculation.unitCost + calculation.landingCost} isNegative tooltip="Factory cost + shipping to local prep centre." />
-                <WaterfallRow label="Amazon Referral Fee" value={calculation.referralFee} isNegative tooltip="Amazon's commission on each sale." />
-                <WaterfallRow label="FBA Fulfillment Fee" value={calculation.fulfillmentFee} isNegative tooltip="Picking, packing, and delivery by Amazon." />
-                <WaterfallRow label="Extra Amazon Fees" value={(feesActive.labelling ? feeAmounts.labelling : 0) + (feesActive.prep ? feeAmounts.prep : 0) + (feesActive.inbound ? feeAmounts.inbound : 0)} isNegative tooltip="Combined labelling, prep and inbound placement fees." />
-                <WaterfallRow label="Monthly Storage" value={calculation.storageFee} isNegative tooltip="Fee for warehouse space occupied." />
-                <WaterfallRow label="Marketing / Ads" value={calculation.adSpendPerUnit} isNegative highlight tooltip="The advertising cost required to generate the sale." />
-                <div className="pt-4 mt-4 border-t border-white/10 flex justify-between items-center">
-                  <span className="text-[10px] font-bold uppercase text-brandRed tracking-[0.2em]">Final Net Profit</span>
-                  <span className="text-3xl font-bold text-brandRed tracking-tighter">£{(calculation.netProfitPerUnit || 0).toFixed(2)}</span>
+              <div className="space-y-2">
+                <WaterfallRow label="Gross Retail Price" value={retailPrice} isStart />
+                <WaterfallRow label="VAT (20%)" value={calculation.vatAmount} isNegative tooltip="Government collection." />
+                <WaterfallRow label="Factory COGS + Landing" value={calculation.unitCost + calculation.landingCost} isNegative />
+                <WaterfallRow label="Amazon Referral Fee" value={calculation.referralFee} isNegative />
+                <WaterfallRow label="FBA Fulfilment (Pick/Pack)" value={calculation.fulfillmentFee} isNegative />
+                <WaterfallRow label="Extra Fees (Labelling/Prep)" value={(feesActive.labelling ? feeAmounts.labelling : 0) + (feesActive.prep ? feeAmounts.prep : 0) + (feesActive.inbound ? feeAmounts.inbound : 0)} isNegative />
+                <WaterfallRow label="Storage Cost" value={calculation.storageFee} isNegative />
+                <WaterfallRow label="Marketing Allocation" value={calculation.adSpendPerUnit} isNegative highlight accentColor={isProfitable ? 'emerald' : 'brandRed'} />
+                
+                <div className="pt-6 mt-6 border-t border-white/10 flex justify-between items-end">
+                  <div className="flex flex-col">
+                    <span className={`text-[10px] font-bold uppercase tracking-[0.2em] mb-1 ${accentColorClass}`}>Unit Net Profit</span>
+                    <span className="text-[8px] text-brandGray uppercase font-medium">Post-Fulfillment</span>
+                  </div>
+                  <span className={`text-4xl font-bold tracking-tighter ${accentColorClass}`}>£{(calculation.netProfitPerUnit || 0).toFixed(2)}</span>
                 </div>
               </div>
             </section>
@@ -536,55 +500,74 @@ const App: React.FC = () => {
   );
 };
 
-const FeeToggle = ({ label, active, amount, onToggle, onChange, tooltip }: any) => (
-  <div className="flex items-center justify-between p-3 bg-white/5 rounded-2xl border border-white/5">
-    <div className="flex items-center gap-2">
-      <button onClick={onToggle} className={`w-8 h-4 rounded-full relative transition-colors ${active ? 'bg-brandRed' : 'bg-white/10'}`}>
-        <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${active ? 'left-4.5' : 'left-0.5'}`}></div>
-      </button>
-      <span className={`text-[10px] font-bold uppercase tracking-widest ${active ? 'text-white' : 'text-brandGray'}`}>{label}</span>
-      {tooltip && <InfoTooltip text={tooltip} />}
-    </div>
-    <div className="w-16">
-      <OverrideInput label="" value={amount} onChange={onChange} isOverridden={false} suffix="£" />
-    </div>
-  </div>
-);
-
-const ProjectionCard = ({ title, revenue, profit, isPostTax, highlight, info }: any) => (
-  <div className={`p-8 rounded-[2rem] border transition-all relative overflow-hidden group ${highlight ? 'bg-brandRed/10 border-brandRed/30 shadow-2xl scale-[1.03]' : 'bg-white/[0.03] border-white/10 shadow-xl'}`}>
-    {highlight && <div className="absolute top-0 right-0 w-24 h-24 bg-brandRed/20 blur-[60px] pointer-events-none"></div>}
-    <div className="flex justify-between items-center mb-6">
-      <h4 className="text-[10px] font-bold uppercase text-brandGray tracking-[0.2em]">
-        {title} Outlook
-        <InfoTooltip text={info} />
-      </h4>
-      {highlight && <div className="w-1.5 h-1.5 bg-brandRed rounded-full animate-pulse"></div>}
-    </div>
-    <div className="space-y-6">
-      <div>
-        <p className="text-[8px] font-bold text-white/30 uppercase mb-1 tracking-widest">Revenue</p>
-        <p className="text-2xl font-bold tracking-tight">£{Math.round(revenue || 0).toLocaleString()}</p>
+const FeeToggle = ({ label, active, amount, onToggle, onChange, tooltip, accentColor }: any) => {
+  const colorClass = accentColor === 'emerald' ? 'bg-emerald-500' : 'bg-brandRed';
+  const textColorClass = active ? 'text-white' : 'text-brandGray';
+  
+  return (
+    <div className="flex items-center justify-between p-3 bg-white/5 rounded-2xl border border-white/5">
+      <div className="flex items-center gap-2">
+        <button onClick={onToggle} className={`w-8 h-4 rounded-full relative transition-all ${active ? colorClass : 'bg-white/10'}`}>
+          <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${active ? 'left-4.5' : 'left-0.5'}`}></div>
+        </button>
+        <span className={`text-[10px] font-bold uppercase tracking-widest ${textColorClass}`}>{label}</span>
+        {tooltip && <InfoTooltip text={tooltip} />}
       </div>
-      <div className="pt-4 border-t border-white/5">
-        <p className="text-[8px] font-bold text-brandRed uppercase mb-1 tracking-widest">{isPostTax ? 'Post-Tax Net' : 'Gross Net Profit'}</p>
-        <p className={`text-4xl font-bold tracking-tighter ${highlight ? 'text-brandRed' : 'text-white'}`}>£{Math.round(profit || 0).toLocaleString()}</p>
+      <div className="w-16">
+        <OverrideInput label="" value={amount} onChange={onChange} isOverridden={false} />
       </div>
     </div>
-  </div>
-);
+  );
+};
 
-const WaterfallRow = ({ label, value, isNegative, isStart, highlight, tooltip }: any) => (
-  <div className="flex justify-between items-center py-1">
-    <span className={`text-[9px] font-bold uppercase tracking-widest flex items-center ${isStart ? 'text-white' : highlight ? 'text-brandRed' : isNegative ? 'text-white/40' : 'text-white/70'}`}>
-      {isNegative ? '-' : ''} {label}
-      {tooltip && <InfoTooltip text={tooltip} />}
-    </span>
-    <span className={`font-bold tracking-tight ${isStart ? 'text-base text-white' : highlight ? 'text-brandRed text-base' : 'text-sm text-white/80'}`}>
-      £{Math.abs(value || 0).toFixed(2)}
-    </span>
-  </div>
-);
+const ProjectionCard = ({ title, revenue, profit, isPostTax, highlight, info, accentColor }: any) => {
+  const isEmerald = accentColor === 'emerald';
+  const accentBorder = isEmerald ? 'border-emerald-500/30' : 'border-brandRed/30';
+  const accentBg = isEmerald ? 'bg-emerald-500/10' : 'bg-brandRed/10';
+  const accentShadow = isEmerald ? 'shadow-emerald-500/20' : 'shadow-brandRed/20';
+  const accentText = isEmerald ? 'text-emerald-500' : 'text-brandRed';
+  const pulseColor = isEmerald ? 'bg-emerald-500' : 'bg-brandRed';
+
+  return (
+    <div className={`p-8 rounded-[2rem] border transition-all relative overflow-hidden group ${highlight ? `${accentBg} ${accentBorder} shadow-2xl scale-[1.03]` : 'bg-white/[0.03] border-white/10 shadow-xl'}`}>
+      {highlight && <div className={`absolute top-0 right-0 w-24 h-24 ${isEmerald ? 'bg-emerald-500/20' : 'bg-brandRed/20'} blur-[60px] pointer-events-none`}></div>}
+      <div className="flex justify-between items-center mb-6">
+        <h4 className="text-[10px] font-bold uppercase text-brandGray tracking-[0.2em]">
+          {title} Outlook
+          <InfoTooltip text={info} />
+        </h4>
+        {highlight && <div className={`w-1.5 h-1.5 ${pulseColor} rounded-full animate-pulse`}></div>}
+      </div>
+      <div className="space-y-6">
+        <div>
+          <p className="text-[8px] font-bold text-white/30 uppercase mb-1 tracking-widest">Revenue</p>
+          <p className="text-2xl font-bold tracking-tight">£{Math.round(revenue || 0).toLocaleString()}</p>
+        </div>
+        <div className="pt-4 border-t border-white/5">
+          <p className={`text-[8px] font-bold uppercase mb-1 tracking-widest ${isPostTax ? accentText : 'text-white/40'}`}>{isPostTax ? 'Post-Tax Net' : 'Gross Net Profit'}</p>
+          <p className={`text-4xl font-bold tracking-tighter ${highlight ? accentText : 'text-white'}`}>£{Math.round(profit || 0).toLocaleString()}</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const WaterfallRow = ({ label, value, isNegative, isStart, highlight, tooltip, accentColor }: any) => {
+  const isEmerald = accentColor === 'emerald';
+  const highlightText = isEmerald ? 'text-emerald-500' : 'text-brandRed';
+  
+  return (
+    <div className="flex justify-between items-center py-1.5">
+      <span className={`text-[9px] font-bold uppercase tracking-widest flex items-center ${isStart ? 'text-white' : highlight ? highlightText : isNegative ? 'text-white/40' : 'text-white/70'}`}>
+        {isNegative ? '-' : ''} {label}
+        {tooltip && <InfoTooltip text={tooltip} />}
+      </span>
+      <span className={`font-bold tracking-tight ${isStart ? 'text-base text-white' : highlight ? `${highlightText} text-base` : 'text-sm text-white/80'}`}>
+        £{Math.abs(value || 0).toFixed(2)}
+      </span>
+    </div>
+  );
+};
 
 const OverrideInput = ({ label, value, onChange, isOverridden, suffix = "£" }: any) => {
   const [displayValue, setDisplayValue] = useState(value?.toString() || "");
@@ -616,7 +599,7 @@ const OverrideInput = ({ label, value, onChange, isOverridden, suffix = "£" }: 
       {label && (
         <label className="flex justify-between items-center mb-2">
           <span className="text-[8px] font-bold uppercase text-brandGray tracking-widest">{label}</span>
-          {isOverridden && <span className="text-[7px] text-brandGray font-bold uppercase italic opacity-40">Derived</span>}
+          {isOverridden && <span className="text-[7px] text-brandGray font-bold uppercase italic opacity-40">Fixed</span>}
         </label>
       )}
       <div className="relative">
@@ -625,7 +608,7 @@ const OverrideInput = ({ label, value, onChange, isOverridden, suffix = "£" }: 
           inputMode="decimal"
           value={displayValue} 
           onChange={handleChange}
-          className={`w-full bg-black/40 border ${isOverridden ? 'border-white/5 opacity-50' : 'border-white/10 focus:border-brandRed/40'} rounded-2xl px-5 py-3 text-xs font-bold focus:outline-none transition-all`} 
+          className={`w-full bg-black/40 border ${isOverridden ? 'border-white/20' : 'border-white/10 focus:border-emerald-500/40'} rounded-2xl px-5 py-3 text-xs font-bold focus:outline-none transition-all placeholder:opacity-20`} 
         />
         <div className="absolute right-5 top-1/2 -translate-y-1/2 text-brandGray text-[10px] font-bold opacity-40">{suffix}</div>
       </div>
@@ -633,28 +616,33 @@ const OverrideInput = ({ label, value, onChange, isOverridden, suffix = "£" }: 
   );
 };
 
-const SliderInput = ({ label, value, min, max, step = 1, prefix = '', suffix = '', onChange }: any) => (
-  <div>
-    <div className="flex justify-between items-end mb-4">
-      <label className="text-[9px] font-bold uppercase text-brandGray tracking-widest">{label}</label>
-      <span className="text-2xl font-bold text-brandRed tracking-tighter">{prefix}{(value || 0).toLocaleString()}<small className="text-[10px] ml-1 uppercase font-semibold text-brandGray opacity-60">{suffix}</small></span>
+const SliderInput = ({ label, value, min, max, step = 1, prefix = '', suffix = '', onChange, accentColor }: any) => {
+  const isEmerald = accentColor === 'emerald';
+  const colorClass = isEmerald ? 'bg-emerald-500' : 'bg-brandRed';
+  const textClass = isEmerald ? 'text-emerald-500' : 'text-brandRed';
+  const shadowClass = isEmerald ? 'shadow-emerald-500/50' : 'shadow-brandRed/50';
+
+  return (
+    <div>
+      <div className="flex justify-between items-end mb-4">
+        <label className="text-[9px] font-bold uppercase text-brandGray tracking-widest">{label}</label>
+        <span className={`text-2xl font-bold tracking-tighter ${textClass}`}>{prefix}{(value || 0).toLocaleString()}<small className="text-[10px] ml-1 uppercase font-semibold text-brandGray opacity-60">{suffix}</small></span>
+      </div>
+      <div className="relative h-2 w-full bg-white/5 rounded-full overflow-hidden group">
+        <input 
+          type="range" 
+          min={min} max={max} step={step} 
+          value={value || 0} 
+          onChange={(e) => onChange(Number(e.target.value))} 
+          className="absolute inset-0 w-full h-full accent-transparent bg-transparent cursor-pointer appearance-none z-10" 
+        />
+        <div 
+          className={`absolute top-0 left-0 h-full ${colorClass} shadow-[0_0_15px] ${shadowClass} transition-all pointer-events-none`} 
+          style={{ width: `${(((value || 0) - min) / (max - min)) * 100}%` }}
+        ></div>
+      </div>
     </div>
-    <div className="relative h-1.5 w-full bg-white/5 rounded-full overflow-hidden group">
-      <input 
-        type="range" 
-        min={min} 
-        max={max} 
-        step={step} 
-        value={value || 0} 
-        onChange={(e) => onChange(Number(e.target.value))} 
-        className="absolute inset-0 w-full h-full accent-brandRed bg-transparent cursor-pointer appearance-none z-10 opacity-0" 
-      />
-      <div 
-        className="absolute top-0 left-0 h-full bg-brandRed shadow-[0_0_15px_rgba(209,36,42,0.5)] transition-all pointer-events-none" 
-        style={{ width: `${(((value || 0) - min) / (max - min)) * 100}%` }}
-      ></div>
-    </div>
-  </div>
-);
+  );
+};
 
 export default App;
