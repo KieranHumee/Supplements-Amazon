@@ -4,23 +4,29 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>10X Amazon FBA Profit Planner</title>
+    <title>10X Health ROI Engine</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Oswald:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script>
       tailwind.config = {
         theme: {
           extend: {
             colors: {
               brandRed: '#D1242A',
+              brandGreen: '#00D18F',
               brandBlack: '#000000',
-              brandGray: '#818285',
               brandWhite: '#FFFFFF',
+              brandGray: '#818285',
+              sidebar: '#000000',
+              bgLight: '#FFFFFF',
             },
             fontFamily: {
               montserrat: ['Montserrat', 'sans-serif'],
-              oswald: ['Oswald', 'sans-serif'],
             },
+            boxShadow: {
+              'soft': '0 1px 3px rgba(0,0,0,0.05)',
+              'heavy': '0 20px 50px -12px rgba(0,0,0,0.1)',
+            }
           }
         }
       }
@@ -28,13 +34,53 @@
     <style>
       body {
         font-family: 'Montserrat', sans-serif;
-        background-color: #050505;
-        font-weight: 400;
+        background-color: #FFFFFF;
+        color: #000000;
         -webkit-font-smoothing: antialiased;
       }
-      h1, h2, h3 {
+      /* Montserrat Black - Primary Header (All Caps) */
+      .font-brand-header {
         font-family: 'Montserrat', sans-serif;
+        font-weight: 900;
         text-transform: uppercase;
+      }
+      /* Montserrat SemiBold/Bold - Secondary Header (All Caps) */
+      .font-brand-sub {
+        font-family: 'Montserrat', sans-serif;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+      /* Montserrat Regular - Body */
+      .font-brand-body {
+        font-family: 'Montserrat', sans-serif;
+        font-weight: 400;
+      }
+      .pulse-line {
+        background-image: url("data:image/svg+xml,%3Csvg width='200' height='40' viewBox='0 0 200 40' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 20H150L158 8L166 32L174 15L178 25L182 20H200' stroke='%23D1242A' stroke-width='2'/%3E%3C/svg%3E");
+        background-repeat: repeat-x;
+        height: 40px;
+        opacity: 0.3;
+      }
+      input[type=range] {
+        -webkit-appearance: none;
+        background: transparent;
+      }
+      input[type=range]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        height: 16px;
+        width: 16px;
+        border-radius: 50%;
+        background: #D1242A;
+        cursor: pointer;
+        margin-top: -7px;
+        border: 2px solid white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      }
+      input[type=range]::-webkit-slider-runnable-track {
+        width: 100%;
+        height: 2px;
+        background: #818285;
+        border-radius: 0;
       }
     </style>
 <script type="importmap">
@@ -52,7 +98,6 @@
 </head>
   <body>
     <div id="root"></div>
-    <!-- Explicit entry point for Vite/Vercel -->
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>

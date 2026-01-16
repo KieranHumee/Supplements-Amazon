@@ -11,9 +11,9 @@ export const PRODUCTS: Product[] = [
     fbaFee: 3.00,
     referralFeePercent: 0.15,
     pricing: {
-      [MoqLevel.LOW]: { moq: 2000, unitCost: 2.25 },
+      [MoqLevel.LOW]: { moq: 2000, unitCost: 2.10 },
       [MoqLevel.MED]: { moq: 5000, unitCost: 1.83 },
-      [MoqLevel.HIGH]: { moq: 10000, unitCost: 1.56 },
+      [MoqLevel.HIGH]: { moq: 10000, unitCost: 1.65 },
     }
   },
   {
@@ -25,9 +25,9 @@ export const PRODUCTS: Product[] = [
     fbaFee: 3.00,
     referralFeePercent: 0.15,
     pricing: {
-      [MoqLevel.LOW]: { moq: 2000, unitCost: 2.92 },
+      [MoqLevel.LOW]: { moq: 2000, unitCost: 2.80 },
       [MoqLevel.MED]: { moq: 5000, unitCost: 2.48 },
-      [MoqLevel.HIGH]: { moq: 10000, unitCost: 2.14 },
+      [MoqLevel.HIGH]: { moq: 10000, unitCost: 2.20 },
     }
   },
   {
@@ -39,9 +39,9 @@ export const PRODUCTS: Product[] = [
     fbaFee: 3.00,
     referralFeePercent: 0.15,
     pricing: {
-      [MoqLevel.LOW]: { moq: 2000, unitCost: 3.05 },
+      [MoqLevel.LOW]: { moq: 2000, unitCost: 2.95 },
       [MoqLevel.MED]: { moq: 5000, unitCost: 2.61 },
-      [MoqLevel.HIGH]: { moq: 10000, unitCost: 2.28 },
+      [MoqLevel.HIGH]: { moq: 10000, unitCost: 2.35 },
     }
   },
   {
@@ -53,9 +53,9 @@ export const PRODUCTS: Product[] = [
     fbaFee: 3.00,
     referralFeePercent: 0.15,
     pricing: {
-      [MoqLevel.LOW]: { moq: 2000, unitCost: 5.98 },
-      [MoqLevel.MED]: { moq: 5000, unitCost: 5.33 },
-      [MoqLevel.HIGH]: { moq: 10000, unitCost: 4.75 },
+      [MoqLevel.LOW]: { moq: 2000, unitCost: 5.40 },
+      [MoqLevel.MED]: { moq: 5000, unitCost: 4.75 },
+      [MoqLevel.HIGH]: { moq: 10000, unitCost: 4.25 },
     }
   },
   {
@@ -67,9 +67,9 @@ export const PRODUCTS: Product[] = [
     fbaFee: 3.00,
     referralFeePercent: 0.15,
     pricing: {
-      [MoqLevel.LOW]: { moq: 2000, unitCost: 2.49 },
+      [MoqLevel.LOW]: { moq: 2000, unitCost: 2.35 },
       [MoqLevel.MED]: { moq: 5000, unitCost: 2.08 },
-      [MoqLevel.HIGH]: { moq: 10000, unitCost: 1.78 },
+      [MoqLevel.HIGH]: { moq: 10000, unitCost: 1.85 },
     }
   },
   {
@@ -81,9 +81,9 @@ export const PRODUCTS: Product[] = [
     fbaFee: 3.00,
     referralFeePercent: 0.15,
     pricing: {
-      [MoqLevel.LOW]: { moq: 2000, unitCost: 2.11 },
+      [MoqLevel.LOW]: { moq: 2000, unitCost: 1.90 },
       [MoqLevel.MED]: { moq: 5000, unitCost: 1.67 },
-      [MoqLevel.HIGH]: { moq: 10000, unitCost: 1.41 },
+      [MoqLevel.HIGH]: { moq: 10000, unitCost: 1.50 },
     }
   }
 ];
